@@ -119,7 +119,7 @@ def format_message(signals: List[dict], analysis: str) -> str:
         date_str = datetime.now().strftime("%d/%m/%Y")
 
     # Phân nhóm
-    market_syms = {"VNINDEX", "VN30", "VN100", "VNALL", "HNX-Index", "UPCOM-Index"}
+    market_syms = {"VNINDEX", "VN30", "VN100", "VNALL", "HNXINDEX", "UPCOMINDEX"}
     cap_syms = {"VNMID", "VNSML"}
     market_sigs = [s for s in signals if s["symbol"] in market_syms]
     cap_sigs = [s for s in signals if s["symbol"] in cap_syms]
