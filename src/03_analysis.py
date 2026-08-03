@@ -90,11 +90,13 @@ Ngày: {signals[0]['date']}
 ## Chỉ số ngành
 {chr(10).join(fmt_signal(s) for s in sector_sigs)}
 
-Viết báo cáo ngắn gọn (≤250 từ) bằng tiếng Việt:
-1. Tổng quan thị trường (1-2 câu)
-2. Nhóm ngành nổi bật nhất & yếu nhất
-3. Cảnh báo kỹ thuật quan trọng (2-3 câu)
-4. Nhận định ngắn hạn (1 câu)
+Viết báo cáo ngắn gọn (≤250 từ) bằng tiếng Việt, **dùng **in đậm** cho tiêu đề và thêm emoji phù hợp ở đầu mỗi tiêu đề**:
+1. 📊 **Tổng quan thị trường** — (1-2 câu)
+2. 🏆 **Nhóm ngành mạnh nhất & yếu nhất** — ...
+3. ⚠️ **Tín hiệu cần chú ý** — ...
+4. 🔮 **Nhận định ngắn hạn** — (1 câu)
+
+Hãy giữ nguyên các emoji và định dạng trên.
 
 Không dùng markdown phức tạp, chỉ dùng **in đậm** cho tiêu đề."""
     return prompt
