@@ -1,6 +1,6 @@
 # 📊 VN Sector Indices Bot
 
-Tự động phân tích kỹ thuật 11 chỉ số thị trường chứng khoán Việt Nam và gửi báo cáo hàng ngày qua Telegram.
+Tự động phân tích kỹ thuật 17 chỉ số thị trường chứng khoán Việt Nam và gửi báo cáo hàng ngày qua Telegram.
 
 ## Chỉ số theo dõi
 
@@ -21,7 +21,7 @@ Tự động phân tích kỹ thuật 11 chỉ số thị trường chứng kho�
 ## Kiến trúc
 
 ```
-cron-job.org (08:00 GMT+7, T2-T6)
+cron-job.org (17:15 GMT+7, T2-T6)
     → GitHub Actions
         → 01_fetch.py      # Lấy OHLCV từ vnstock VCI + cache CSV
         → 02_indicators.py # MA20/50/200, RSI, MACD, Bollinger Bands
