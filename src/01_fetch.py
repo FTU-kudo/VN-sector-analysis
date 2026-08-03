@@ -17,8 +17,12 @@ SOURCE = "VCI"
 
 INDICES = {
     # Vốn hoá
+    "VNINDEX" : "VN-Index",
+    "VN30" : "VN30",
+    "VN100" : "VN100",
     "VNMID":  "VN Mid Cap",
     "VNSML":  "VN Small Cap",
+    "VNALL" : "VN All Share",
     # Ngành
     "VNFIN":  "Tài chính",
     "VNREAL": "Bất động sản",
