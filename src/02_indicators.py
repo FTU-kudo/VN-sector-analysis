@@ -343,11 +343,11 @@ def build_signal(df: pd.DataFrame) -> dict:
     else:
         rsi = float(rsi)
         if rsi > 70:
-            rsi_status = f"Quá mua ({rsi:.1f})"
+            rsi_status = f"Quá mua ({rsi:.2f})"
         elif rsi < 30:
-            rsi_status = f"Quá bán ({rsi:.1f})"
+            rsi_status = f"Quá bán ({rsi:.2f})"
         else:
-            rsi_status = f"Trung tính ({rsi:.1f})"
+            rsi_status = f"Trung tính ({rsi:.2f})"
 
     # Bollinger
     bb_upper = last["bb_upper"]
@@ -386,7 +386,7 @@ def build_signal(df: pd.DataFrame) -> dict:
             adx_dir = "Giảm (DI- > DI+)"
         else:
             adx_dir = "Cân bằng"
-        adx_status = f"{adx_trend}, {adx_dir}, ADX={adx_val:.1f}"
+        adx_status = f"{adx_trend}, {adx_dir}, ADX={adx_val:.2f}"
     else:
         adx_status = "Không đủ dữ liệu ADX"
 
