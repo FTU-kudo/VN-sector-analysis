@@ -23,10 +23,12 @@ def build_prompt(signals: List[dict]) -> str:
     Tạo prompt cực ngắn gọn từ danh sách tín hiệu đã có.
     Chỉ truyền các thông tin cốt lõi: giá, thay đổi, RSI, ADX, Ichimoku, SMC.
     """
-    # Phân nhóm vốn hoá / ngành
+    # Phân nhóm rõ ràng
+    market_syms = {"VNINDEX", "VN30", "VN100", "VNALL"}
     cap_syms = {"VNMID", "VNSML"}
+    market_sigs = [s for s in signals if s["symbol"] in market_syms]
     cap_sigs = [s for s in signals if s["symbol"] in cap_syms]
-    sector_sigs = [s for s in signals if s["symbol"] not in cap_syms]
+    sector_sigs = [s for s in signals if s["symbol"] not in market_syms and s["symbol"] not in cap_syms]
 
     def fmt_signal(s: dict) -> str:
         # Dòng ngắn: symbol, close, 1D, RSI, ADX, Ichimoku (tóm tắt), SMC (nếu có)
@@ -78,6 +80,9 @@ def build_prompt(signals: List[dict]) -> str:
 
     prompt = f"""Bạn là chuyên gia phân tích kỹ thuật thị trường chứng khoán Việt Nam.
 Ngày: {signals[0]['date']}
+
+## Chỉ số thị trường chung
+{chr(10).join(fmt_signal(s) for s in market_sigs)}
 
 ## Chỉ số vốn hoá trung – nhỏ
 {chr(10).join(fmt_signal(s) for s in cap_sigs)}
