@@ -1,5 +1,5 @@
 """
-01_fetch.py — Lấy dữ liệu OHLCV cho 11 chỉ số VN
+01_fetch.py — Lấy dữ liệu OHLCV cho 17 chỉ số VN
 Chạy: python src/01_fetch.py
 """
 
@@ -16,13 +16,18 @@ TODAY  = date.today().strftime("%Y-%m-%d")
 SOURCE = "VCI"
 
 INDICES = {
-    # Vốn hoá
+    # Chỉ số thị trường chung
     "VNINDEX" : "VN-Index",
     "VN30" : "VN30",
     "VN100" : "VN100",
+    "VNALL" : "VN All Share",
+    "HNX-Index" : "HNXINDEX",
+    "UPCOM-Index" : "UPCOMINDEX",
+
+    # Vốn hóa trung – nhỏ
     "VNMID":  "VN Mid Cap",
     "VNSML":  "VN Small Cap",
-    "VNALL" : "VN All Share",
+    
     # Ngành
     "VNFIN":  "Tài chính",
     "VNREAL": "Bất động sản",
@@ -102,7 +107,7 @@ def fetch_one(symbol: str, name: str) -> pd.DataFrame | None:
 
 def fetch_all() -> dict[str, pd.DataFrame]:
     print("=" * 60)
-    print("  FETCH: 11 chỉ số VN")
+    print("  FETCH: 17 chỉ số VN")
     print("=" * 60)
     results = {}
     for symbol, name in INDICES.items():
