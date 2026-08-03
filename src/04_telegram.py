@@ -161,13 +161,13 @@ def format_message(signals: List[dict], analysis: str) -> str:
 
     msg = f"""📊 <b>BÁO CÁO THỊ TRƯỜNG — {date_str}</b>
 
-<b>Chỉ số thị trường chung</b>
+📈 <b>Chỉ số thị trường chung</b>
 {market_lines}
 
-<b>Vốn hoá trung – nhỏ</b>
+🏢 <b>Nhóm vốn hoá trung – nhỏ</b>
 {cap_lines}
 
-<b>Chỉ số ngành</b>
+🏭 <b>Chỉ số ngành</b>
 {sector_lines}
 
 ━━━━━━━━━━━━━━━━━
@@ -176,7 +176,7 @@ def format_message(signals: List[dict], analysis: str) -> str:
 {analysis_html}
 
 ━━━━━━━━━━━━━━━━━
-<i>Nguồn: vnstock VCI · Phân tích: Gemini Flash</i>"""
+<i>Nguồn: vnstock</i>"""
     return msg
 
 
