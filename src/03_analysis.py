@@ -24,7 +24,7 @@ def build_prompt(signals: List[dict]) -> str:
     Chỉ truyền các thông tin cốt lõi: giá, thay đổi, RSI, ADX, Ichimoku, SMC.
     """
     # Phân nhóm rõ ràng
-    market_syms = {"VNINDEX", "VN30", "VN100", "VNALL"}
+    market_syms = {"VNINDEX", "VN30", "VN100", "VNALL", "HNXINDEX", "UPCOMINDEX"}
     cap_syms = {"VNMID", "VNSML"}
     market_sigs = [s for s in signals if s["symbol"] in market_syms]
     cap_sigs = [s for s in signals if s["symbol"] in cap_syms]
@@ -93,7 +93,7 @@ Ngày: {signals[0]['date']}
 Viết báo cáo ngắn gọn (≤250 từ) bằng tiếng Việt:
 1. Tổng quan thị trường (1-2 câu)
 2. Nhóm ngành nổi bật nhất & yếu nhất
-3. Cảnh báo kỹ thuật quan trọng (RSI cực đoan, ADX mạnh + hướng, Ichimoku, SMC)
+3. Cảnh báo kỹ thuật quan trọng (2-3 câu)
 4. Nhận định ngắn hạn (1 câu)
 
 Không dùng markdown phức tạp, chỉ dùng **in đậm** cho tiêu đề."""
