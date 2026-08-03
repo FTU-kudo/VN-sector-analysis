@@ -1,6 +1,7 @@
 """
-04_telegram.py — Format và gửi báo cáo thị trường đầy đủ qua Telegram.
-Hiển thị: giá, 1D, RSI, MACD, ADX, Ichimoku, SMC.
+04_telegram.py — Format và gửi báo cáo thị trường qua Telegram.
+Hiển thị: giá, 1D, RSI (trạng thái + số), MACD (Bullish/Bearish + số),
+ADX (Mạnh/Yếu + số + hướng), Ichimoku (Tích cực/Trung tính/Tiêu cực + ký hiệu).
 """
 
 import os
@@ -15,58 +16,87 @@ TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 TELEGRAM_URL     = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
-# ── Hàm tiện ích rút gọn chỉ báo ──────────────────────────────────────
+# ── Hàm rút gọn & định dạng chỉ báo ─────────────────────────────────
 
-def _rsi_label(rsi_str: str) -> str:
-    """Trả về chuỗi RSI dạng số + trạng thái ngắn (Quá mua, Quá bán, Trung tính)."""
+def _rsi_format(rsi_str: str) -> str:
+    """RSI: Trung tính (48.3)"""
     if not rsi_str:
         return "N/A"
-    # Mẫu: "Trung tính (53.1)" -> "Trung tính (53.1)"
-    parts = rsi_str.split("(")
-    state = parts[0].strip()
-    val = parts[1].replace(")", "").strip() if len(parts) > 1 else "?"
-    return f"{val} {state}"
+    # Mẫu: "Trung tính (53.1)" -> giữ nguyên
+    return rsi_str
 
-def _macd_short(macd_str: str) -> str:
-    """Rút gọn MACD: Bullish / Bearish / Golden / Death."""
+
+def _macd_format(macd_str: str, macd_line_val: float) -> str:
+    """MACD: Bearish (-2.35) hoặc Golden ✨ (1.20)"""
+    if not macd_str:
+        return "N/A"
+    # Xác định trạng thái chính
     if "Golden" in macd_str:
-        return "Golden ✨"
-    if "Death" in macd_str:
-        return "Death 💀"
-    if "Bullish" in macd_str or "trên Signal" in macd_str.lower():
-        return "Bullish"
-    if "Bearish" in macd_str or "dưới Signal" in macd_str.lower():
-        return "Bearish"
-    return macd_str[:12]  # fallback
+        status = "Golden ✨"
+    elif "Death" in macd_str:
+        status = "Death 💀"
+    elif "Bullish" in macd_str:
+        status = "Bullish"
+    elif "Bearish" in macd_str:
+        status = "Bearish"
+    else:
+        status = macd_str[:12]  # fallback
+    # Thêm số (MACD line)
+    if macd_line_val is not None:
+        return f"{status} ({macd_line_val:+.2f})"
+    return status
 
-def _adx_short(adx_str: str) -> str:
-    """ADX: lấy số ADX và hướng (↑/→/↓)."""
+
+def _adx_format(adx_str: str) -> str:
+    """ADX: Mạnh (28.5)↑📈"""
     if not adx_str or "N/A" in adx_str:
         return "N/A"
-    # Mẫu: "Xu hướng mạnh, Tăng (DI+ > DI-), ADX=28.5"
-    parts = adx_str.split(", ")
+    # Trích xuất sức mạnh, hướng, số
     strength = ""
-    direction = ""
+    direction_icon = ""
     adx_val = ""
+    parts = adx_str.split(", ")
     for p in parts:
         if "mạnh" in p:
-            strength = "↑"
+            strength = "Mạnh"
+            strength_icon = "↑"
         elif "yếu" in p:
-            strength = "→"
+            strength = "Yếu"
+            strength_icon = "→"
         elif "không" in p:
-            strength = "↓"
+            strength = "Yếu"   # không xu hướng coi như yếu
+            strength_icon = "↓"
         if "Tăng" in p:
-            direction = "📈"
+            direction_icon = "📈"
         elif "Giảm" in p:
-            direction = "📉"
+            direction_icon = "📉"
         if "ADX=" in p:
             adx_val = p.split("=")[-1]
-    return f"{adx_val}{strength}{direction}"
+    # Nếu không tìm thấy strength, fallback
+    if not strength:
+        return adx_str[:20]
+    return f"{strength} ({adx_val}){strength_icon}{direction_icon}"
 
-def _ichi_short(ichi_str: str) -> str:
-    """Ichimoku: ☁️ trên/dưới + TK ↑/↓."""
+
+def _ichimoku_format(ichi_str: str) -> str:
+    """
+    Ichimoku: Tích cực (☁️↑ TK↑) / Trung tính (☁️→ TK↓) / Tiêu cực (☁️↓ TK↓)
+    """
     if not ichi_str or "N/A" in ichi_str:
         return "N/A"
+    # Xác định trạng thái tổng quan dựa trên vị trí mây và Tenkan/Kijun
+    if "Giá trên mây" in ichi_str and "Tenkan > Kijun" in ichi_str:
+        outlook = "Tích cực"
+    elif "Giá dưới mây" in ichi_str and "Tenkan < Kijun" in ichi_str:
+        outlook = "Tiêu cực"
+    elif "Giá trên mây" in ichi_str:
+        outlook = "Tích cực"
+    elif "Giá dưới mây" in ichi_str:
+        outlook = "Tiêu cực"
+    else:
+        outlook = "Trung tính"
+
+    # Ký hiệu cloud và TK
     cloud = ""
     if "Giá trên mây" in ichi_str:
         cloud = "☁️↑"
@@ -79,35 +109,28 @@ def _ichi_short(ichi_str: str) -> str:
         tk = "TK↑"
     elif "Tenkan < Kijun" in ichi_str:
         tk = "TK↓"
-    return f"{cloud} {tk}"
+    else:
+        tk = "TK="
+    return f"{outlook} ({cloud} {tk})"
+
 
 def _smc_short(smc_str: str) -> str:
-    """SMC: chỉ lấy sự kiện chính (BOS/CHoCH)."""
     if not smc_str or "Không tín hiệu" in smc_str:
         return ""
-    # Ưu tiên BOS/CHoCH
-    for keyword in ["BOS Bull", "BOS Bear", "CHoCH Bull", "CHoCH Bear"]:
+    for keyword in ["BOS Bull", "BOS Bear", "CHoCH Bull", "CHoCH Bear", "Bullish OB", "Bearish OB"]:
         if keyword in smc_str:
             return keyword
-    # Nếu có OB
-    if "Bullish OB" in smc_str:
-        return "OB Bull"
-    if "Bearish OB" in smc_str:
-        return "OB Bear"
-    return smc_str[:20]
+    return ""
 
-# ── Format tin nhắn Telegram ───────────────────────────────────────────
+# ── Format tin nhắn ──────────────────────────────────────────────────
 
 def format_message(signals: List[dict], analysis: str) -> str:
-    """Tạo tin nhắn Telegram hoàn chỉnh với đầy đủ tín hiệu."""
-    # Ngày từ dữ liệu
     if signals and "date" in signals[0]:
         date_str = signals[0]["date"]
     else:
         from datetime import datetime
         date_str = datetime.now().strftime("%d/%m/%Y")
 
-    # Phân nhóm
     market_syms = {"VNINDEX", "VN30", "VN100", "VNALL", "HNXINDEX", "UPCOMINDEX"}
     cap_syms    = {"VNMID", "VNSML"}
     market_sigs = [s for s in signals if s["symbol"] in market_syms]
@@ -122,20 +145,24 @@ def format_message(signals: List[dict], analysis: str) -> str:
         symbol = s.get("symbol", "???")
         close  = s.get("close", 0)
         chg_1d = s.get("change_1d", 0)
-        rsi    = _rsi_label(s.get("rsi", ""))
-        macd   = _macd_short(s.get("macd", ""))
-        adx    = _adx_short(s.get("adx", ""))
-        ichi   = _ichi_short(s.get("ichimoku", ""))
-        smc    = _smc_short(s.get("smc", ""))
 
-        # Xây dựng dòng
+        # Các thành phần đã định dạng
+        rsi_display    = _rsi_format(s.get("rsi", ""))
+        macd_display   = _macd_format(s.get("macd", ""), s.get("macd_line"))
+        adx_display    = _adx_format(s.get("adx", ""))
+        ichi_display   = _ichimoku_format(s.get("ichimoku", ""))
+        smc_display    = _smc_short(s.get("smc", ""))
+
         line = f"{a} <b>{symbol}</b> {close:,.1f} ({chg_1d:+.2f}%)"
         details = []
-        details.append(f"RSI:{rsi}")
-        details.append(f"MACD:{macd}")
-        if adx != "N/A": details.append(f"ADX:{adx}")
-        if ichi != "N/A": details.append(f"Ichi:{ichi}")
-        if smc: details.append(f"SMC:{smc}")
+        details.append(f"RSI: {rsi_display}")
+        details.append(f"MACD: {macd_display}")
+        if adx_display != "N/A":
+            details.append(f"ADX: {adx_display}")
+        if ichi_display != "N/A":
+            details.append(f"Ichi: {ichi_display}")
+        if smc_display:
+            details.append(f"SMC: {smc_display}")
         if details:
             line += " | " + " | ".join(details)
         return line
@@ -166,7 +193,6 @@ def format_message(signals: List[dict], analysis: str) -> str:
 
 
 def send_telegram(message: str) -> bool:
-    """Gửi tin nhắn Telegram (HTML)."""
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         log.warning("Chưa cấu hình TELEGRAM_TOKEN / TELEGRAM_CHAT_ID")
         return False
@@ -187,48 +213,18 @@ def send_telegram(message: str) -> bool:
         return False
 
 
-# ── Test cục bộ ────────────────────────────────────────────────────────
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-
-    dummy_signals = [
-        {
-            "symbol": "VNINDEX", "name": "VN-Index", "date": "2026-08-03",
-            "close": 1280.5, "change_1d": 0.85,
-            "rsi": "Trung tính (56.2)",
-            "macd": "MACD trên Signal (Bullish)",
-            "adx": "Xu hướng yếu, Tăng (DI+ > DI-), ADX=22.1",
-            "ichimoku": "Giá trên mây (Bullish); Tenkan > Kijun (tín hiệu tăng)",
-            "smc": "Không tín hiệu SMC"
-        },
-        {
-            "symbol": "VNMID", "name": "VN Mid Cap", "date": "2026-08-03",
-            "close": 1913.2, "change_1d": 2.12,
-            "rsi": "Trung tính (52.3)",
-            "macd": "Golden cross (Bullish)",
-            "adx": "Xu hướng mạnh, Tăng (DI+ > DI-), ADX=28.5",
-            "ichimoku": "Giá trên mây (Bullish); Tenkan > Kijun (tín hiệu tăng)",
-            "smc": "BOS Bull (phá vỡ cấu trúc tăng)"
-        },
-        {
-            "symbol": "VNSML", "name": "VN Small Cap", "date": "2026-08-03",
-            "close": 1250.0, "change_1d": -0.73,
-            "rsi": "Quá bán (28.9)",
-            "macd": "Death cross (Bearish)",
-            "adx": "Xu hướng mạnh, Giảm (DI- > DI+), ADX=30.2",
-            "ichimoku": "Giá dưới mây (Bearish); Tenkan < Kijun (tín hiệu giảm)",
-            "smc": "BOS Bear (phá vỡ cấu trúc giảm)"
-        },
-        {
-            "symbol": "VNREAL", "name": "VN Bất động sản", "date": "2026-08-03",
-            "close": 3106.8, "change_1d": 0.03,
-            "rsi": "Quá bán (28.4)",
-            "macd": "MACD dưới Signal (Bearish)",
-            "adx": "Xu hướng yếu, Giảm (DI- > DI+), ADX=19.5",
-            "ichimoku": "Giá trong mây (Sideways); Tenkan < Kijun (tín hiệu giảm)",
-            "smc": "Không tín hiệu SMC"
+    # Dữ liệu test (đã bổ sung macd_line, macd_hist)
+    dummy = [
+        {"symbol": "VNFIN", "name": "VN Tài chính", "date": "2026-08-03",
+         "close": 2153.9, "change_1d": 2.60,
+         "rsi": "Trung tính (48.3)",
+         "macd": "MACD trên Signal (Bullish)", "macd_line": 1.25, "macd_hist": 0.30,
+         "adx": "Xu hướng mạnh, Giảm (DI- > DI+), ADX=33.9",
+         "ichimoku": "Giá dưới mây (Bearish); Tenkan < Kijun (tín hiệu giảm)",
+         "smc": "Không tín hiệu SMC"
         }
     ]
-    dummy_analysis = "Đây là phân tích mẫu từ Gemini."
-    msg = format_message(dummy_signals, dummy_analysis)
+    msg = format_message(dummy, "Phân tích mẫu.")
     print(msg)
