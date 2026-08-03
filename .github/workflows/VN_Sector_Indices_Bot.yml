@@ -1,0 +1,53 @@
+name: VN Sector Indices Bot
+
+on:
+  # Trigger từ cron-job.org gọi webhook này
+  workflow_dispatch:
+  # Backup: GitHub cron lúc 01:00 UTC = 08:00 GMT+7
+  # (Lưu ý: GitHub cron không đảm bảo giờ chính xác trên repo mới)
+  schedule:
+    - cron: "0 1 * * 1-5"   # Thứ 2–6, 08:00 SA giờ VN
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          # Cần token để commit cache CSV
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Cache data directory
+        uses: actions/cache@v4
+        with:
+          path: data/
+          key: vn-data-${{ runner.os }}-${{ hashFiles('data/*.csv') }}
+          restore-keys: |
+            vn-data-${{ runner.os }}-
+
+      - name: Run pipeline
+        env:
+          GEMINI_API_KEY:   ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python src/main.py
+
+      - name: Commit updated CSV cache
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/*.csv || true
+          git diff --staged --quiet || git commit -m "chore: update data cache $(date +'%Y-%m-%d')"
+          git push || true
