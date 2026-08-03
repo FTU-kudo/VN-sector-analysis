@@ -6,7 +6,7 @@ on:
   # Backup: GitHub cron lúc 01:00 UTC = 08:00 GMT+7
   # (Lưu ý: GitHub cron không đảm bảo giờ chính xác trên repo mới)
   schedule:
-    - cron: "0 1 * * 1-5"   # Thứ 2–6, 08:00 SA giờ VN
+    - cron: "15 10 * * 1-5"   # Thứ 2–6, 08:00 SA giờ VN
 
 jobs:
   run-bot:
