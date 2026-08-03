@@ -21,8 +21,8 @@ INDICES = {
     "VN30" : "VN30",
     "VN100" : "VN100",
     "VNALL" : "VN All Share",
-    "HNX-Index" : "HNXINDEX",
-    "UPCOM-Index" : "UPCOMINDEX",
+    "HNXINDEX" : "HNX-Index",
+    "UPCOMINDEX" : "UPCOM-Index",
 
     # Vốn hóa trung – nhỏ
     "VNMID":  "VN Mid Cap",
