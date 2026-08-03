@@ -92,9 +92,9 @@ Ngày: {signals[0]['date']}
 
 Viết báo cáo ngắn gọn (≤250 từ) bằng tiếng Việt, **dùng **in đậm** cho tiêu đề và thêm emoji phù hợp ở đầu mỗi tiêu đề**:
 1. 📊 **Tổng quan thị trường** — (1-2 câu)
-2. 🏆 **Nhóm ngành mạnh nhất & yếu nhất** — ...
-3. ⚠️ **Tín hiệu cần chú ý** — ...
-4. 🔮 **Nhận định ngắn hạn** — (1 câu)
+2. 🏆 **Nhóm ngành mạnh nhất & yếu nhất**: (1-2 câu).
+3. ⚠️ **Tín hiệu cần chú ý**: (1-2 câu).
+4. 🔮 **Nhận định ngắn hạn**: (1-2 câu)
 
 Hãy giữ nguyên các emoji và định dạng trên.
 
