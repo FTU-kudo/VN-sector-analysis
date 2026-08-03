@@ -320,6 +320,8 @@ def build_signal(df: pd.DataFrame) -> dict:
     # MACD
     macd_val = last["macd"]
     macd_sig = last["macd_signal"]
+    macd_line_val = float(last["macd"]) if pd.notna(last["macd"]) else None
+    macd_hist_val = float(last["macd_hist"]) if pd.notna(last["macd_hist"]) else None
     prev_macd = prev["macd"]
     prev_sig = prev["macd_signal"]
     if all(pd.notna(x) for x in [macd_val, macd_sig, prev_macd, prev_sig]):
@@ -348,13 +350,21 @@ def build_signal(df: pd.DataFrame) -> dict:
             rsi_status = f"Trung tính ({rsi:.1f})"
 
     # Bollinger
-    if pd.notna(last["bb_upper"]) and pd.notna(last["bb_lower"]):
-        if close > last["bb_upper"]:
+    bb_upper = last["bb_upper"]
+    bb_lower = last["bb_lower"]
+    pct_b = last["%b"]
+    if pd.notna(bb_upper) and pd.notna(bb_lower):
+        if close > bb_upper:
             bb_status = "Giá vượt dải BB trên — có thể quá mua"
-        elif close < last["bb_lower"]:
+        elif close < bb_lower:
             bb_status = "Giá phá dải BB dưới — có thể quá bán"
         else:
-            bb_status = f"Trong dải Bollinger (%B={last['%b']:.2f})"
+            # Xử lý %B có thể NaN
+            if pd.notna(pct_b):
+                bb_val = f"%B={pct_b:.2f}"
+            else:
+                bb_val = "%B=N/A"
+            bb_status = f"Trong dải Bollinger ({bb_val})"
     else:
         bb_status = "Không đủ dữ liệu Bollinger"
 
@@ -413,10 +423,15 @@ def build_signal(df: pd.DataFrame) -> dict:
         smc_events.append("CHoCH Bull (đảo chiều sang tăng)")
     if last["choch_bear"]:
         smc_events.append("CHoCH Bear (đảo chiều sang giảm)")
-    if last["ob_bull"]:
-        smc_events.append(f"Bullish OB tại {last['ob_high']:.2f}-{last['ob_low']:.2f}")
-    if last["ob_bear"]:
-        smc_events.append(f"Bearish OB tại {last['ob_high']:.2f}-{last['ob_low']:.2f}")
+    if last["ob_bull"] or last["ob_bear"]:
+        ob_high = last["ob_high"]
+        ob_low = last["ob_low"]
+        if pd.notna(ob_high) and pd.notna(ob_low):
+            ob_desc = f"OB tại {ob_high:.2f}-{ob_low:.2f}"
+            if last["ob_bull"]:
+                smc_events.append(f"Bullish {ob_desc}")
+            if last["ob_bear"]:
+                smc_events.append(f"Bearish {ob_desc}")
     smc_status = "; ".join(smc_events) if smc_events else "Không tín hiệu SMC"
 
     signal = {
@@ -431,6 +446,8 @@ def build_signal(df: pd.DataFrame) -> dict:
         "ma200": round(float(last["ma200"]), 2) if pd.notna(last["ma200"]) else None,
         "rsi": rsi_status,
         "macd": macd_status,
+        "macd_line": round(macd_line_val, 2) if macd_line_val is not None else None,
+        "macd_hist": round(macd_hist_val, 2) if macd_hist_val is not None else None,
         "bollinger": bb_status,
         "adx": adx_status,
         "ichimoku": ichimoku_status,
