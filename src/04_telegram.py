@@ -75,7 +75,12 @@ def _adx_format(adx_str: str) -> str:
     # Nếu không tìm thấy strength, fallback
     if not strength:
         return adx_str[:20]
-    return f"{strength} ({adx_val}){strength_icon}{direction_icon}"
+    try:
+        adx_num = float(adx_val)
+    except ValueError:
+        adx_num = None
+    adx_str_fmt = f"{adx_num:.2f}" if adx_num is not None else adx_val
+    return f"{strength} ({adx_str_fmt}){strength_icon}{direction_icon}"
 
 
 def _ichimoku_format(ichi_str: str) -> str:
@@ -153,7 +158,7 @@ def format_message(signals: List[dict], analysis: str) -> str:
         ichi_display   = _ichimoku_format(s.get("ichimoku", ""))
         smc_display    = _smc_short(s.get("smc", ""))
 
-        line = f"{a} <b>{symbol}</b> {close:,.1f} ({chg_1d:+.2f}%)"
+        line = f"{a} <b>{symbol}</b> {close:,.2f} ({chg_1d:+.2f}%)"
         details = []
         details.append(f"RSI: {rsi_display}")
         details.append(f"MACD: {macd_display}")
