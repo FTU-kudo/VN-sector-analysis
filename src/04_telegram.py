@@ -21,7 +21,7 @@ def _rsi_label(rsi_str: str) -> str:
     """Trả về chuỗi RSI dạng số + trạng thái ngắn (Quá mua, Quá bán, Trung tính)."""
     if not rsi_str:
         return "N/A"
-    # Mẫu: "Trung tính (53.1)" -> "53.1 Trung tính"
+    # Mẫu: "Trung tính (53.1)" -> "Trung tính (53.1)"
     parts = rsi_str.split("(")
     state = parts[0].strip()
     val = parts[1].replace(")", "").strip() if len(parts) > 1 else "?"
