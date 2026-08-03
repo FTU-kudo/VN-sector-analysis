@@ -14,7 +14,7 @@ log = logging.getLogger("analysis")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.0-flash-lite:generateContent"
+    "gemini-3.1-flash-lite:generateContent"
 )
 
 
