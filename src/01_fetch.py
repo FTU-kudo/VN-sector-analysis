@@ -13,7 +13,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 TODAY  = date.today().strftime("%Y-%m-%d")
-SOURCE = "VCI"
+SOURCE = "KBS"
 
 VNSTOCK_API_KEY = os.environ.get("VNSTOCK_API_KEY")
 
