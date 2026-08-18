@@ -13,13 +13,13 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 TODAY  = date.today().strftime("%Y-%m-%d")
-SOURCE = "KBS"
+SOURCE = "VCI"
 
 VNSTOCK_API_KEY = os.environ.get("VNSTOCK_API_KEY")
 
 def create_quote(symbol: str):
     """Tạo đối tượng Quote với API key (nếu có)."""
-    return Quote(symbol=symbol, source=SOURCE, api_key=VNSTOCK_API_KEY)
+    return Quote(symbol=symbol, source=SOURCE)
     
 INDICES = {
     # Chỉ số thị trường chung
