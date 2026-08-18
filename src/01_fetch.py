@@ -13,6 +13,11 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 TODAY  = date.today().strftime("%Y-%m-%d")
+import vnstock.explorer.vci.const as vci_const
+vci_const._INDEX_MAPPING['VNMID'] = 'VNMIDCAP'
+vci_const._INDEX_MAPPING['VNSML'] = 'VNSMALLCAP'
+vci_const._INDEX_MAPPING['VNALL'] = 'VNALLSHARE'
+
 SOURCE = "VCI"
 
 VNSTOCK_API_KEY = os.environ.get("VNSTOCK_API_KEY")
