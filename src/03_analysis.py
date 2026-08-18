@@ -115,21 +115,21 @@ def call_gemini(prompt: str) -> str:
             "maxOutputTokens": 600,
         },
     }
-    try:
-        resp = requests.post(
-            f"{GEMINI_URL}?key={GEMINI_API_KEY}",
-            json=payload,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-    except requests.RequestException as e:
-        log.error("Lỗi Gemini API: %s", e)
-        return f"❌ Lỗi Gemini API: {e}"
-    except (KeyError, IndexError) as e:
-        log.error("Phản hồi không hợp lệ: %s", resp.text[:200])
-        return f"❌ Phản hồi Gemini không hợp lệ: {resp.text[:200]}"
+    for attempt in range(3):
+        try:
+            resp = requests.post(
+                f"{GEMINI_URL}?key={GEMINI_API_KEY}",
+                json=payload,
+                timeout=60,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except requests.RequestException as e:
+            log.error("Lỗi Gemini API (lần %d): %s", attempt + 1, e)
+            if attempt == 2:
+                return f"❌ Lỗi Gemini API: {e}"
+    return "❌ Lỗi Gemini API: Quá số lần thử lại."
 
 
 def analyze(signals: List[dict]) -> str:
