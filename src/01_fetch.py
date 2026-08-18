@@ -15,6 +15,12 @@ os.makedirs(DATA_DIR, exist_ok=True)
 TODAY  = date.today().strftime("%Y-%m-%d")
 SOURCE = "VCI"
 
+VNSTOCK_API_KEY = os.environ.get("VNSTOCK_API_KEY")
+
+def create_quote(symbol: str):
+    """Tạo đối tượng Quote với API key (nếu có)."""
+    return Quote(symbol=symbol, source=SOURCE, api_key=VNSTOCK_API_KEY)
+    
 INDICES = {
     # Chỉ số thị trường chung
     "VNINDEX" : "VN-Index",
@@ -62,7 +68,6 @@ def normalize(df: pd.DataFrame, symbol: str, name: str) -> pd.DataFrame:
 def fetch_one(symbol: str, name: str) -> pd.DataFrame | None:
     cache_path = os.path.join(DATA_DIR, f"{symbol}.csv")
 
-    # ── Đọc cache nếu có ────────────────────────────────────────
     if os.path.exists(cache_path):
         df_old = pd.read_csv(cache_path, parse_dates=["time"])
         last_dt = df_old["time"].max()
@@ -70,11 +75,11 @@ def fetch_one(symbol: str, name: str) -> pd.DataFrame | None:
             print(f"  ⚡ {name:25s} ({symbol})  cache còn mới, bỏ qua")
             return df_old
 
-        # Chỉ fetch dữ liệu mới từ ngày cuối cache
         start = last_dt.strftime("%Y-%m-%d")
         print(f"  🔄 {name:25s} ({symbol})  cập nhật từ {start}...")
         try:
-            df_new = Quote(symbol=symbol, source=SOURCE).history(
+            # Sử dụng helper thay vì Quote trực tiếp
+            df_new = create_quote(symbol).history(
                 start=start, end=TODAY, interval="1D"
             )
             df_new = normalize(df_new, symbol, name)
@@ -86,10 +91,9 @@ def fetch_one(symbol: str, name: str) -> pd.DataFrame | None:
             print(f"  ⚠️  Lỗi cập nhật {symbol}: {e} — dùng cache cũ")
             return df_old
     else:
-        # Fetch toàn bộ lịch sử
         print(f"  ⬇️  {name:25s} ({symbol})  fetch từ đầu...")
         try:
-            df_all = Quote(symbol=symbol, source=SOURCE).history(
+            df_all = create_quote(symbol).history(
                 start="2000-01-01", end=TODAY, interval="1D"
             )
             df_all = normalize(df_all, symbol, name)
