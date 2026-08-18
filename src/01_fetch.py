@@ -13,6 +13,14 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 TODAY  = date.today().strftime("%Y-%m-%d")
+import sys
+from types import ModuleType
+dummy_viz = ModuleType('vnstock.common.viz')
+dummy_viz.HAS_VNSTOCK_CHART = True
+dummy_viz.HAS_VNSTOCK_EZCHART = True
+dummy_viz.Chart = type('Chart', (), {})
+sys.modules['vnstock.common.viz'] = dummy_viz
+
 import vnstock.explorer.vci.const as vci_const
 vci_const._INDEX_MAPPING['VNMID'] = 'VNMIDCAP'
 vci_const._INDEX_MAPPING['VNSML'] = 'VNSMALLCAP'
