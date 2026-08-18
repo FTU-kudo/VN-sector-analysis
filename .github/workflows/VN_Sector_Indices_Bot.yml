@@ -12,6 +12,8 @@ jobs:
   run-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -33,7 +35,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: data/
-          key: vn-data-${{ runner.os }}-${{ hashFiles('data/*.csv') }}
+          key: vn-data-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             vn-data-${{ runner.os }}-
 
