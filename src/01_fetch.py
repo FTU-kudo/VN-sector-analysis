@@ -22,9 +22,9 @@ dummy_viz.Chart = type('Chart', (), {})
 sys.modules['vnstock.common.viz'] = dummy_viz
 
 import vnstock.explorer.vci.const as vci_const
-vci_const._INDEX_MAPPING['VNMID'] = 'VNMIDCAP'
-vci_const._INDEX_MAPPING['VNSML'] = 'VNSMALLCAP'
-vci_const._INDEX_MAPPING['VNALL'] = 'VNALLSHARE'
+vci_const._VCI_INDEX_MAPPING['VNMID'] = 'VNMIDCAP'
+vci_const._VCI_INDEX_MAPPING['VNSML'] = 'VNSMALLCAP'
+vci_const._VCI_INDEX_MAPPING['VNALL'] = 'VNALLSHARE'
 
 SOURCE = "VCI"
 
