@@ -182,24 +182,39 @@ def format_message(signals: List[dict], analysis: str) -> str:
 
 def send_telegram(message: str) -> bool:
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        log.warning("Chưa cấu hình TELEGRAM_TOKEN / TELEGRAM_CHAT_ID")
+        log.warning("Thiếu TELEGRAM_TOKEN hoặc TELEGRAM_CHAT_ID")
         return False
 
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-    }
+    # Debug: in độ dài tin nhắn để phát hiện vượt 4096
+    print(f"  📨 Độ dài tin nhắn: {len(message)} ký tự")
+
+    parts   = _split_message(message)
+    print(f"  📨 Số phần gửi: {len(parts)}")
+
+    results = []
+    for i, part in enumerate(parts, 1):
+        if len(parts) > 1:
+            part = f"<i>(Phần {i}/{len(parts)})</i>\n" + part
+        ok = _post_single(part)
+        results.append(ok)
+
+    return all(results)
+
+def _post_single(text: str) -> bool:
+    ...
     try:
         resp = requests.post(TELEGRAM_URL, json=payload, timeout=15)
+        # Debug: in HTTP status và response body khi lỗi
+        if not resp.ok:
+            print(f"  ❌ HTTP {resp.status_code}: {resp.text}")
         resp.raise_for_status()
-        log.info("Đã gửi Telegram thành công")
         return True
+    except requests.HTTPError:
+        log.error("Telegram HTTP %s: %s", resp.status_code, resp.text[:300])
+        return False
     except requests.RequestException as e:
         log.error("Lỗi gửi Telegram: %s", e)
         return False
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
