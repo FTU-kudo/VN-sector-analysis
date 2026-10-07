@@ -157,7 +157,7 @@ def format_message(signals: List[dict], analysis: str) -> str:
     sector_lines = "\n".join(fmt_row(s) for s in sector_sigs) if sector_sigs else "—"
 
     # Chuyển đổi markdown → HTML cho phần phân tích của Gemini
-    analysis_html = _markdown_to_html(analysis)
+    analysis_html = _sanitize_gemini_text(analysis)
 
     msg = f"""📊 <b>BÁO CÁO THỊ TRƯỜNG — {date_str}</b>
 
@@ -215,6 +215,57 @@ def _post_single(text: str) -> bool:
     except requests.RequestException as e:
         log.error("Lỗi gửi Telegram: %s", e)
         return False
+import html  # stdlib, không cần cài thêm
+
+def _sanitize_gemini_text(text: str) -> str:
+    """
+    Làm sạch output của Gemini trước khi đưa vào HTML mode Telegram.
+    Thứ tự xử lý quan trọng:
+      1. Escape & trước (tránh double-escape &amp; → &amp;amp;)
+      2. Escape < và > chưa phải tag hợp lệ
+      3. Convert **bold** → <b>bold</b>
+      4. Strip các markdown Gemini hay dùng nhưng Telegram không hỗ trợ
+    """
+    # Bước 1: escape ký tự đặc biệt HTML trong plain text
+    # Chỉ escape nếu chưa phải tag hợp lệ — dùng cách đơn giản nhất:
+    # tách phần non-tag và escape riêng
+    text = _escape_non_tags(text)
+
+    # Bước 2: **bold** → <b>bold</b>
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text, flags=re.DOTALL)
+
+    # Bước 3: *italic* hoặc _italic_ → bỏ dấu (Telegram HTML không dùng <i> từ markdown)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'_(.+?)_',   r'\1', text)
+
+    # Bước 4: ### heading → dòng thường (Gemini hay dùng)
+    text = re.sub(r'^#{1,3}\s+', '', text, flags=re.MULTILINE)
+
+    return text
+
+
+def _escape_non_tags(text: str) -> str:
+    """
+    Escape & < > nhưng giữ nguyên các tag HTML hợp lệ của Telegram:
+    <b>, </b>, <i>, </i>, <code>, </code>, <a href="...">, </a>
+    """
+    VALID_TAGS = re.compile(
+        r'(</?(?:b|i|code|pre|a)(?:\s[^>]*)?>)',
+        re.IGNORECASE
+    )
+    parts = VALID_TAGS.split(text)
+    result = []
+    for part in parts:
+        if VALID_TAGS.match(part):
+            result.append(part)   # tag hợp lệ → giữ nguyên
+        else:
+            # plain text → escape & < >
+            part = part.replace('&', '&amp;')
+            part = part.replace('<', '&lt;')
+            part = part.replace('>', '&gt;')
+            result.append(part)
+    return ''.join(result)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
