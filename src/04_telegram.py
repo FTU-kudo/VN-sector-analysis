@@ -4,18 +4,19 @@
 - Giữ nguyên tất cả thuật ngữ kỹ thuật (BOS, CHoCH, v.v.).
 """
 
-import os
+import html as html_lib
 import logging
+import os
 import re
-from typing import List, Dict
+from typing import Dict, List
 
 import requests
 
 log = logging.getLogger("telegram")
 
-TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
-TELEGRAM_URL     = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+TELEGRAM_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
 
 def _markdown_to_html(text: str) -> str:
@@ -23,8 +24,7 @@ def _markdown_to_html(text: str) -> str:
     Chuyển **bold** → <b>bold</b>.
     Không hỗ trợ các markdown khác.
     """
-    # Dùng regex đơn giản để thay thế cặp **...**
-    return re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
 
 
 # ── Các hàm rút gọn chỉ báo (giữ nguyên) ──────────────────────────
@@ -32,6 +32,7 @@ def _rsi_label(rsi_str: str) -> str:
     if not rsi_str:
         return "N/A"
     return rsi_str
+
 
 def _macd_format(macd_str: str, macd_line_val: float) -> str:
     if not macd_str:
@@ -49,6 +50,7 @@ def _macd_format(macd_str: str, macd_line_val: float) -> str:
     if macd_line_val is not None:
         return f"{status} ({macd_line_val:+.2f})"
     return status
+
 
 def _adx_format(adx_str: str) -> str:
     if not adx_str or "N/A" in adx_str:
@@ -82,6 +84,7 @@ def _adx_format(adx_str: str) -> str:
     adx_str_fmt = f"{adx_num:.2f}" if adx_num is not None else adx_val
     return f"{strength} ({adx_str_fmt}){strength_icon}{direction_icon}"
 
+
 def _ichimoku_format(ichi_str: str) -> str:
     if not ichi_str or "N/A" in ichi_str:
         return "N/A"
@@ -99,10 +102,10 @@ def _ichimoku_format(ichi_str: str) -> str:
     tk = "TK↑" if "Tenkan > Kijun" in ichi_str else ("TK↓" if "Tenkan < Kijun" in ichi_str else "TK=")
     return f"{outlook} ({cloud} {tk})"
 
+
 def _smc_short(smc_str: str) -> str:
     if not smc_str or "Không tín hiệu" in smc_str:
         return ""
-    # Giữ nguyên CHoCH, BOS, OB
     for keyword in ["BOS Bull", "BOS Bear", "CHoCH Bull", "CHoCH Bear", "Bullish OB", "Bearish OB"]:
         if keyword in smc_str:
             return keyword
@@ -111,14 +114,13 @@ def _smc_short(smc_str: str) -> str:
 
 # ── Format tin nhắn ─────────────────────────────────────────────────
 def format_message(signals: List[dict], analysis: str) -> str:
-    # Ngày từ dữ liệu
     if signals and "date" in signals[0]:
         date_str = signals[0]["date"]
     else:
         from datetime import datetime
+
         date_str = datetime.now().strftime("%d/%m/%Y")
 
-    # Phân nhóm
     market_syms = {"VNINDEX", "VN30", "VN100", "VNALL", "HNXINDEX", "UPCOMINDEX"}
     cap_syms = {"VNMID", "VNSML"}
     market_sigs = [s for s in signals if s["symbol"] in market_syms]
@@ -156,7 +158,6 @@ def format_message(signals: List[dict], analysis: str) -> str:
     cap_lines = "\n".join(fmt_row(s) for s in cap_sigs) if cap_sigs else "—"
     sector_lines = "\n".join(fmt_row(s) for s in sector_sigs) if sector_sigs else "—"
 
-    # Chuyển đổi markdown → HTML cho phần phân tích của Gemini
     analysis_html = _sanitize_gemini_text(analysis)
 
     msg = f"""📊 <b>BÁO CÁO THỊ TRƯỜNG — {date_str}</b>
@@ -180,15 +181,47 @@ def format_message(signals: List[dict], analysis: str) -> str:
     return msg
 
 
+def _split_message(text: str, limit: int = 3500) -> List[str]:
+    """Tách tin nhắn thành nhiều phần đủ ngắn cho Telegram."""
+    if len(text) <= limit:
+        return [text]
+
+    chunks: List[str] = []
+    current = ""
+
+    for line in text.splitlines(keepends=True):
+        if not current:
+            current = line
+            continue
+
+        if len(current) + len(line) <= limit:
+            current += line
+        else:
+            chunks.append(current.rstrip())
+            current = line
+
+    if current:
+        chunks.append(current.rstrip())
+
+    final: List[str] = []
+    for chunk in chunks:
+        if len(chunk) <= limit:
+            final.append(chunk)
+        else:
+            for i in range(0, len(chunk), limit):
+                final.append(chunk[i : i + limit])
+
+    return final or [text[:limit]]
+
+
 def send_telegram(message: str) -> bool:
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         log.warning("Thiếu TELEGRAM_TOKEN hoặc TELEGRAM_CHAT_ID")
         return False
 
-    # Debug: in độ dài tin nhắn để phát hiện vượt 4096
     print(f"  📨 Độ dài tin nhắn: {len(message)} ký tự")
 
-    parts   = _split_message(message)
+    parts = _split_message(message)
     print(f"  📨 Số phần gửi: {len(parts)}")
 
     results = []
@@ -200,14 +233,30 @@ def send_telegram(message: str) -> bool:
 
     return all(results)
 
+
 def _post_single(text: str) -> bool:
-    ...
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+
     try:
         resp = requests.post(TELEGRAM_URL, json=payload, timeout=15)
-        # Debug: in HTTP status và response body khi lỗi
         if not resp.ok:
             print(f"  ❌ HTTP {resp.status_code}: {resp.text}")
-        resp.raise_for_status()
+            body = resp.text.lower()
+            if resp.status_code == 400 and "can't parse entities" in body:
+                fallback_payload = {
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "text": html_lib.unescape(text),
+                    "disable_web_page_preview": True,
+                }
+                fallback = requests.post(TELEGRAM_URL, json=fallback_payload, timeout=15)
+                print(f"  🔁 Retry plain-text: HTTP {fallback.status_code}: {fallback.text}")
+                return fallback.ok
+            resp.raise_for_status()
         return True
     except requests.HTTPError:
         log.error("Telegram HTTP %s: %s", resp.status_code, resp.text[:300])
@@ -215,7 +264,7 @@ def _post_single(text: str) -> bool:
     except requests.RequestException as e:
         log.error("Lỗi gửi Telegram: %s", e)
         return False
-import html  # stdlib, không cần cài thêm
+
 
 def _sanitize_gemini_text(text: str) -> str:
     """
@@ -226,21 +275,11 @@ def _sanitize_gemini_text(text: str) -> str:
       3. Convert **bold** → <b>bold</b>
       4. Strip các markdown Gemini hay dùng nhưng Telegram không hỗ trợ
     """
-    # Bước 1: escape ký tự đặc biệt HTML trong plain text
-    # Chỉ escape nếu chưa phải tag hợp lệ — dùng cách đơn giản nhất:
-    # tách phần non-tag và escape riêng
     text = _escape_non_tags(text)
-
-    # Bước 2: **bold** → <b>bold</b>
-    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text, flags=re.DOTALL)
-
-    # Bước 3: *italic* hoặc _italic_ → bỏ dấu (Telegram HTML không dùng <i> từ markdown)
-    text = re.sub(r'\*(.+?)\*', r'\1', text)
-    text = re.sub(r'_(.+?)_',   r'\1', text)
-
-    # Bước 4: ### heading → dòng thường (Gemini hay dùng)
-    text = re.sub(r'^#{1,3}\s+', '', text, flags=re.MULTILINE)
-
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text, flags=re.DOTALL)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"_(.+?)_", r"\1", text)
+    text = re.sub(r"^#{1,3}\s+", "", text, flags=re.MULTILINE)
     return text
 
 
@@ -249,42 +288,25 @@ def _escape_non_tags(text: str) -> str:
     Escape & < > nhưng giữ nguyên các tag HTML hợp lệ của Telegram:
     <b>, </b>, <i>, </i>, <code>, </code>, <a href="...">, </a>
     """
-    VALID_TAGS = re.compile(
-        r'(</?(?:b|i|code|pre|a)(?:\s[^>]*)?>)',
-        re.IGNORECASE
-    )
+    VALID_TAGS = re.compile(r'(</?(?:b|i|code|pre|a)(?:\s[^>]*)?>)', re.IGNORECASE)
     parts = VALID_TAGS.split(text)
     result = []
     for part in parts:
         if VALID_TAGS.match(part):
-            result.append(part)   # tag hợp lệ → giữ nguyên
-        else:
-            # plain text → escape & < >
-            part = part.replace('&', '&amp;')
-            part = part.replace('<', '&lt;')
-            part = part.replace('>', '&gt;')
             result.append(part)
-    return ''.join(result)
+        else:
+            part = part.replace("&", "&amp;")
+            part = part.replace("<", "&lt;")
+            part = part.replace(">", "&gt;")
+            result.append(part)
+    return "".join(result)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    # Dữ liệu test
     dummy_signals = [
-        {"symbol": "VNINDEX", "name": "VN-Index", "date": "2026-08-03",
-         "close": 1280.56, "change_1d": 0.85,
-         "rsi": "Trung tính (56.23)",
-         "macd": "MACD trên Signal (Bullish)", "macd_line": 1.25,
-         "adx": "Xu hướng yếu, Tăng (DI+ > DI-), ADX=22.10",
-         "ichimoku": "Giá trên mây (Bullish); Tenkan > Kijun (tín hiệu tăng)",
-         "smc": "BOS Bull (phá vỡ cấu trúc tăng)"},
-        {"symbol": "VNMID", "name": "VN Mid Cap", "date": "2026-08-03",
-         "close": 1913.20, "change_1d": 2.12,
-         "rsi": "Trung tính (52.30)",
-         "macd": "Golden cross (Bullish)", "macd_line": 0.85,
-         "adx": "Xu hướng mạnh, Tăng (DI+ > DI-), ADX=28.50",
-         "ichimoku": "Giá trên mây (Bullish); Tenkan > Kijun (tín hiệu tăng)",
-         "smc": "CHoCH Bull (đảo chiều sang tăng)"},
+        {"symbol": "VNINDEX", "name": "VN-Index", "date": "2026-08-03", "close": 1280.56, "change_1d": 0.85, "rsi": "Trung tính (56.23)", "macd": "MACD trên Signal (Bullish)", "macd_line": 1.25, "adx": "Xu hướng yếu, Tăng (DI+ > DI-), ADX=22.10", "ichimoku": "Giá trên mây (Bullish); Tenkan > Kijun (tín hiệu tăng)", "smc": "BOS Bull (phá vỡ cấu trúc tăng)"},
+        {"symbol": "VNMID", "name": "VN Mid Cap", "date": "2026-08-03", "close": 1913.20, "change_1d": 2.12, "rsi": "Trung tính (52.30)", "macd": "Golden cross (Bullish)", "macd_line": 0.85, "adx": "Xu hướng mạnh, Tăng (DI+ > DI-), ADX=28.50", "ichimoku": "Giá trên mây (Bullish); Tenkan > Kijun (tín hiệu tăng)", "smc": "CHoCH Bull (đảo chiều sang tăng)"},
     ]
     dummy_analysis = "**Tổng quan thị trường** hôm nay khá tích cực với tín hiệu CHoCH Bull từ VNMID."
     msg = format_message(dummy_signals, dummy_analysis)
