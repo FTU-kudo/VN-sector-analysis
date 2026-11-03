@@ -175,9 +175,7 @@ def format_message(signals: List[dict], analysis: str) -> str:
 🤖 <b>Phân tích AI</b>
 
 {analysis_html}
-
-━━━━━━━━━━━━━━━━━
-<i>Nguồn: vnstock</i>"""
+"""
     return msg
 
 
