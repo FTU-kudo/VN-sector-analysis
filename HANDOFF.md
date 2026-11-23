@@ -72,3 +72,42 @@
 - **Chưa kiểm chứng được:** sandbox không kết nối được tới host dữ liệu, nên hành vi endpoint vẫn dựa trên mô tả/hình ảnh.
   Lần chạy thật đầu tiên cần xem log: số nến tải về mỗi chỉ số, `data/quality_report.json` (nhất là `board_check`), và mã VNUTI
   mới thêm. Nếu nguồn không có VNUTI thì chỉ cần xoá một dòng trong `INDICES`.
+
+---
+
+## 📅 [23/11/2026] Viết lại workflow để kiểm tra được và chắc chắn nhận được tin Telegram
+
+- **Yêu cầu:** kiểm tra và viết lại các file workflow sao cho có thể *kiểm tra* được và *nhận* được tin nhắn Telegram.
+- **Những gì đã tìm ra khi kiểm tra code gửi tin:**
+  - `_post_single` bắt `requests.HTTPError` rồi đọc `resp.status_code`, nhưng nếu lỗi xảy ra ngay ở `requests.post`
+    thì `resp` chưa được gán — có thể ném `UnboundLocalError` che mất lỗi thật.
+  - Không có retry: một lần 429/502 thoáng qua là **mất toàn bộ báo cáo** của ngày hôm đó.
+  - Lỗi 400/403 (chat_id sai, bot bị chặn) chỉ in nguyên văn tiếng Anh của Telegram, không nói cách sửa.
+  - Fallback khi Telegram từ chối HTML chỉ `unescape` chứ không bỏ thẻ, nên tin dự phòng vẫn còn `<b>…</b>`.
+  - Không có cách nào kiểm tra secret Telegram mà không chạy cả pipeline — trong khi sự cố vừa rồi lại xảy ra
+    đúng ở bước `pip install`, tức là **không có dòng code nào kịp chạy** để báo là Telegram hỏng.
+  - Không có bảng tóm tắt: muốn biết phiên dữ liệu nào, gửi được tin chưa, phải mở log từng bước.
+  - Khi nguồn dữ liệu chết hẳn, mỗi chỉ số chờ 3 lần retry → cả 18 chỉ số mất nhiều phút vô ích.
+- **Đã sửa:**
+  - `src/modules mới`: `telegram_check.py` (stdlib: kiểm tra định dạng token → `getMe` → `getChat` → tuỳ chọn gửi thử,
+    in gợi ý sửa lỗi, ghi JSON/summary) và `write_summary.py` (bảng Markdown cho `$GITHUB_STEP_SUMMARY`).
+  - `04_telegram.py`: `_post_message` retry có backoff cho lỗi tạm thời (429 tôn trọng `retry_after`, 5xx, mất mạng),
+    **không** retry cho lỗi cấu hình (400/403), trả về lý do cụ thể qua `LAST_ERROR`; fallback HTML → văn bản thuần có bỏ thẻ.
+  - `main.py`: thêm `--dry-run` (chỉ tải dữ liệu + tính chỉ báo, không gọi Gemini, không gửi tin) và ghi
+    `data/run_status.json` cho bước summary.
+  - `01_fetch.py`: cầu dao — sau 3 lỗi liên tiếp thì ngừng gọi API, các mã còn lại dùng cache (status `skipped`).
+  - Workflow chính: thêm bước `Check Telegram configuration` chạy **trước** `pip install` và chỉ dùng stdlib
+    (`continue-on-error: true` để dữ liệu vẫn cập nhật), input `dry_run`, bước `Write run summary` (`if: always()`),
+    cảnh báo lỗi kèm trạng thái từng bước (`telegram=… install=… tests=… pipeline=…`), và truyền input qua `env`
+    thay vì nội suy thẳng vào shell.
+  - Workflow mới `.github/workflows/Telegram_Test.yml`: chạy tay, không cài gói, kiểm tra token/chat rồi gửi tin thử
+    trong khoảng 15 giây.
+  - Test: 57 → **97** test (thêm `test_telegram_check.py`, `test_telegram_send.py`, `test_write_summary.py`,
+    và test cho cầu dao dừng gọi API).
+- **Cách kiểm tra (theo thứ tự):**
+  1. Actions → **Telegram Test** → Run workflow. Chưa nhận được tin thì log của bước này nói rõ lý do.
+  2. Actions → **VN Sector Indices Bot** → Run workflow với `dry_run: true`: xác nhận dữ liệu mới nhất là phiên nào.
+  3. Chạy lại không có `dry_run`: nhận báo cáo thật.
+- **Chưa kiểm chứng được:** sandbox không có secret và không gọi được `api.telegram.org`, nên lần chạy
+  **Telegram Test** đầu tiên chính là phép thử cho phần này. Logic retry/fallback/chia phần đã được test bằng
+  response giả, không phải bằng Telegram thật.

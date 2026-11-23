@@ -45,6 +45,9 @@ HISTORY_START = date(2000, 1, 1)
 OVERLAP_DAYS = 15
 REPAIR_OHLC = os.environ.get("REPAIR_OHLC", "1") != "0"
 STALE_WARN_DAYS = int(os.environ.get("STALE_WARN_DAYS", "5"))
+# Khi nguồn chết hẳn, đừng bắt cả 18 chỉ số chờ retry: dừng gọi API sau vài lỗi
+# liên tiếp và dùng cache cho phần còn lại.
+MAX_CONSECUTIVE_FAILURES = int(os.environ.get("MAX_CONSECUTIVE_FAILURES", "3"))
 
 QUALITY_PATH = os.path.join(DATA_DIR, "quality_report.json")
 
@@ -303,11 +306,39 @@ def fetch_all(
     results: Dict[str, pd.DataFrame] = {}
     report: Dict[str, Any] = {}
 
+    consecutive_failures = 0
     for symbol in targets:
+        if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+            frame = read_cache(symbol)
+            latest = (
+                pd.to_datetime(frame["time"]).max().date()
+                if frame is not None and not frame.empty
+                else None
+            )
+            report[symbol] = {
+                "status": "skipped",
+                "rows": len(frame) if frame is not None else 0,
+                "latest": latest.isoformat() if latest else None,
+                "issues": {"counts": {}, "samples": {}},
+            }
+            if frame is not None:
+                results[symbol] = frame
+            continue
+
         frame, meta = fetch_one(symbol, INDICES[symbol], client, force_full=force_full)
         report[symbol] = meta
         if frame is not None:
             results[symbol] = frame
+        if meta["status"] in ("failed", "empty"):
+            consecutive_failures += 1
+        else:
+            consecutive_failures = 0
+
+    if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+        log.error(
+            "Nguồn dữ liệu không phản hồi sau %d lỗi liên tiếp — các mã còn lại dùng cache.",
+            MAX_CONSECUTIVE_FAILURES,
+        )
 
     # ── Pivot giá đóng cửa ──────────────────────────────────────
     if results:
@@ -363,6 +394,9 @@ def fetch_all(
         )
 
     failed = sorted(s for s, m in report.items() if m["status"] in ("failed", "empty"))
+    skipped = sorted(s for s, m in report.items() if m["status"] == "skipped")
+    if skipped:
+        log.warning("Bỏ qua do nguồn không phản hồi: %s", ", ".join(skipped))
     if failed:
         log.error("Không lấy được: %s", ", ".join(failed))
     log.info(
@@ -379,6 +413,7 @@ def fetch_all(
             "symbols_ok": len(results),
             "symbols_total": len(targets),
             "failed": failed,
+            "skipped": skipped,
             "latest_session": latest_session.isoformat() if latest_session else None,
             "stale_days": stale_days,
             "quality_report": QUALITY_PATH,

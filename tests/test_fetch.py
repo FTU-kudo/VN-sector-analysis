@@ -206,3 +206,29 @@ def test_fetch_all_records_staleness(sandbox, fetch_mod, monkeypatch):
     assert fetch_mod.LAST_RUN["stale_days"] > fetch_mod.STALE_WARN_DAYS
     report = json.loads((sandbox / "quality_report.json").read_text())
     assert report["stale_days"] == fetch_mod.LAST_RUN["stale_days"]
+
+
+def test_dead_source_stops_calling_after_three_failures(
+    sandbox, fetch_mod, monkeypatch, yuanta
+):
+    """Nguồn chết hẳn: không bắt 18 chỉ số chờ retry, phần còn lại dùng cache."""
+    symbols = ["AAA", "BBB", "CCC", "DDD", "EEE"]
+    for symbol in symbols:
+        (sandbox / f"{symbol}.csv").write_text(
+            "time,open,high,low,close,volume,symbol,name\n"
+            f"2026-11-09,10,11,9,10,1000,{symbol},{symbol}\n",
+            encoding="utf-8-sig",
+        )
+
+    fake = FakeClient(error=yuanta.YuantaError("host down"))
+    monkeypatch.setattr(fetch_mod.yc, "YuantaClient", lambda *a, **k: fake)
+    monkeypatch.setattr(fetch_mod, "INDICES", {s: s for s in symbols})
+
+    frames = fetch_mod.fetch_all()
+
+    assert len(fake.calls) == fetch_mod.MAX_CONSECUTIVE_FAILURES  # dừng gọi API
+    assert set(frames) == set(symbols)  # cache vẫn được dùng
+    report = json.loads((sandbox / "quality_report.json").read_text())
+    assert report["symbols"]["DDD"]["status"] == "skipped"
+    assert report["symbols"]["EEE"]["status"] == "skipped"
+    assert fetch_mod.LAST_RUN["skipped"] == ["DDD", "EEE"]

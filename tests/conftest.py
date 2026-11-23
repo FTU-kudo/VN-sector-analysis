@@ -62,3 +62,22 @@ def repair():
     import repair_data
 
     return repair_data
+
+
+@pytest.fixture(scope="session")
+def telegram_check():
+    import telegram_check
+
+    return telegram_check
+
+
+@pytest.fixture(scope="session")
+def write_summary():
+    import write_summary
+
+    return write_summary
+
+
+@pytest.fixture(scope="session")
+def telegram():
+    return load("04_telegram.py")

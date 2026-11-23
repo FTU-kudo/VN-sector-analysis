@@ -35,11 +35,13 @@ loại bỏ hoàn toàn — nguồn đó không còn cung cấp dữ liệu, và
 ```
 cron-job.org (17:15 GMT+7, T2-T6)
     → GitHub Actions
-        → pytest                        # 57 test: parser, timestamp, chống bot, làm sạch dữ liệu
+        → telegram_check.py             # token/chat còn đúng? (stdlib, chạy trước khi cài gói)
+        → pytest                        # 97 test: parser, timestamp, chống bot, làm sạch dữ liệu, gửi tin
         → 01_fetch.py   # OHLCV từ nguồn đã mua + cache CSV + quality_report.json
         → 02_indicators.py # MA20/50/200, RSI, MACD, Bollinger, ADX, Ichimoku, SMC
         → 03_analysis.py   # Gemini Flash API phân tích tín hiệu
-        → 04_telegram.py   # Gửi báo cáo qua Telegram Bot
+        → 04_telegram.py   # Gửi báo cáo qua Telegram Bot (retry + fallback văn bản thuần)
+        → write_summary.py # bảng tóm tắt trong tab Actions
         → commit CSV + quality_report.json
         → check_freshness.py            # chặn trường hợp dữ liệu âm thầm đứng yên
 ```
@@ -51,7 +53,7 @@ Nếu bất kỳ bước nào lỗi, bước `Alert on failure` gửi tin nhắn
 
 ```
 src/
-├── main.py             # Entry point pipeline (--force-full, --symbols)
+├── main.py             # Entry point pipeline (--dry-run, --force-full, --symbols)
 ├── yuanta_client.py    # HTTP client: nến ngày + bảng chỉ số, xử lý challenge, retry
 ├── data_quality.py     # Quy tắc kiểm tra/làm sạch nến (nguồn sự thật duy nhất)
 ├── 01_fetch.py         # Tải dữ liệu, ghép với cache, ghi quality_report.json
@@ -60,6 +62,8 @@ src/
 ├── 04_telegram.py      # Format + gửi Telegram
 ├── repair_data.py      # Làm sạch CSV đã commit (một lần / khi cần)
 ├── check_freshness.py  # Cảnh báo & fail khi dữ liệu quá cũ
+├── telegram_check.py   # Kiểm tra token/chat_id + gửi tin thử (chỉ stdlib)
+├── write_summary.py    # Bảng tóm tắt cho tab Actions
 └── notify_failure.py   # Cảnh báo Telegram khi workflow lỗi (chỉ stdlib)
 tests/                  # 57 test, không cần mạng
 data/                   # Cache CSV + quality_report.json (commit vào repo)
@@ -104,13 +108,33 @@ python src/main.py           # cần TELEGRAM_* để gửi tin
 
 ### 3. Chạy lại thủ công
 ```bash
+python src/main.py --dry-run                   # chỉ tải dữ liệu + tính chỉ báo, không gửi tin
 python src/main.py --symbols VNINDEX,VN30      # chỉ vài mã
 python src/main.py --force-full                # tải lại toàn bộ lịch sử
 python src/repair_data.py --dry-run            # xem CSV nào lệch chuẩn
 python src/check_freshness.py                  # dữ liệu có cũ quá không
+python src/telegram_check.py --send "thử"      # kiểm tra Telegram + gửi tin thử
 ```
 
-Workflow có input tương ứng (`force_full`, `symbols`) để chạy từ tab Actions.
+Workflow có input tương ứng (`force_full`, `symbols`, `dry_run`) để chạy từ tab Actions.
+
+### 3b. Kiểm tra và nhận tin nhắn Telegram
+
+**Cách nhanh nhất:** tab **Actions → Telegram Test → Run workflow** (chọn branch cần chạy). Workflow này
+không cài gói, không gọi nguồn dữ liệu, chạy khoảng 15 giây: nó kiểm tra token, kiểm tra chat rồi gửi một
+tin nhắn thử. Nếu vẫn không nhận được tin, log của bước này nói rõ lý do:
+
+| Thông báo của Telegram | Nguyên nhân | Cách sửa |
+|---|---|---|
+| `Unauthorized` / `Not Found` | token sai hoặc đã bị thu hồi | BotFather → API Token, cập nhật secret `TELEGRAM_TOKEN` |
+| `Bad Request: chat not found` | `chat_id` sai, hoặc bot chưa vào nhóm | thêm bot vào nhóm/kênh, lấy lại chat id |
+| `Forbidden: bot was blocked by the user` | bạn đã chặn bot | mở Telegram, bỏ chặn bot |
+| `Forbidden: bot is not a member…` | bot chưa được thêm vào kênh | thêm bot, cấp quyền gửi tin |
+| `Bad Request: not enough rights…` | bot thiếu quyền gửi | cấp quyền gửi tin cho bot trong kênh/nhóm |
+
+Mỗi lần chạy báo cáo, phần **summary** ở tab Actions có dòng *Telegram — báo cáo* và *Telegram — cấu hình*,
+nên biết ngay tin đã đi hay chưa và vì sao. Nếu dữ liệu chưa cập nhật, dùng **Run workflow** với
+`dry_run: true` để kiểm tra nguồn dữ liệu trước khi gửi tin.
 
 ### 4. Trigger từ cron-job.org (khuyến nghị)
 - **URL**: `https://api.github.com/repos/FTU-kudo/VN-sector-analysis/actions/workflows/VN_Sector_Indices_Bot.yml/dispatches`
@@ -135,4 +159,5 @@ Workflow có input tương ứng (`force_full`, `symbols`) để chạy từ tab
 ```
 
 Nếu dữ liệu mới nhất không phải phiên gần đây, tin nhắn mở đầu bằng dòng cảnh báo `⚠️ Dữ liệu mới nhất là phiên …`,
-nên không bao giờ có chuyện báo cáo cũ mà trông như mới.
+nên không bao giờ có chuyện báo cáo cũ mà trông như mới. Báo cáo dài được chia thành nhiều phần
+(`(Phần 1/2)`); nếu Telegram từ chối HTML, tin được gửi lại dạng văn bản thuần thay vì mất luôn.

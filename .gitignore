@@ -4,3 +4,5 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+data/run_status.json
+data/telegram_check.json
