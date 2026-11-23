@@ -1,0 +1,41 @@
+# .github/workflows/Telegram_Test.yml
+name: Telegram Test
+
+# Workflow riêng chỉ để xác nhận token/chat_id: không cài gói, không gọi nguồn
+# dữ liệu, chạy khoảng 15 giây. Dùng khi tin nhắn hằng ngày không tới.
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: "Nội dung tin nhắn thử (để trống = mặc định)"
+        type: string
+        default: ""
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check token & chat, then send a test message
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INPUT_MESSAGE: ${{ inputs.message }}
+        run: |
+          MSG="${INPUT_MESSAGE}"
+          if [ -z "${MSG}" ]; then
+            MSG="✅ VN Sector Bot: Telegram hoạt động ($(date -u +'%Y-%m-%d %H:%M UTC'))"
+          fi
+          python src/telegram_check.py --require --send "${MSG}" --summary

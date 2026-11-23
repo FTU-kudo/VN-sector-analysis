@@ -1,11 +1,22 @@
+<!-- README.md -->
 # 📊 VN Sector Indices Bot
 
-Tự động phân tích kỹ thuật 17 chỉ số thị trường chứng khoán Việt Nam và gửi báo cáo hàng ngày qua Telegram.
+Tự động phân tích kỹ thuật các chỉ số thị trường chứng khoán Việt Nam và gửi báo cáo hàng ngày qua Telegram.
+
+Dữ liệu OHLCV lấy từ **nguồn dữ liệu thị trường đã mua** (xem `src/yuanta_client.py`). Thư viện `vnstock`/VCI đã được
+loại bỏ hoàn toàn — nguồn đó không còn cung cấp dữ liệu, và mọi phụ thuộc vào index cài đặt riêng của nó đã bị xoá khỏi
+`requirements.txt`.
 
 ## Chỉ số theo dõi
 
 | Nhóm | Symbol | Tên |
 |---|---|---|
+| Thị trường | VNINDEX | VN-Index |
+| Thị trường | VN30 | VN30 |
+| Thị trường | VN100 | VN100 |
+| Thị trường | VNALL | VN All Share |
+| Thị trường | HNXINDEX | HNX-Index |
+| Thị trường | UPCOMINDEX | UPCOM-Index |
 | Vốn hoá | VNMID | VN Mid Cap |
 | Vốn hoá | VNSML | VN Small Cap |
 | Ngành | VNFIN | Tài chính |
@@ -17,30 +28,69 @@ Tự động phân tích kỹ thuật 17 chỉ số thị trường chứng kho�
 | Ngành | VNMAT | Nguyên vật liệu |
 | Ngành | VNCONS | Tiêu dùng thiết yếu |
 | Ngành | VNCOND | Tiêu dùng tùy ý |
+| Ngành | VNUTI | Tiện ích |
 
 ## Kiến trúc
 
 ```
 cron-job.org (17:15 GMT+7, T2-T6)
     → GitHub Actions
-        → 01_fetch.py      # Lấy OHLCV từ vnstock VCI + cache CSV
-        → 02_indicators.py # MA20/50/200, RSI, MACD, Bollinger Bands
+        → telegram_check.py             # token/chat còn đúng? (stdlib, chạy trước khi cài gói)
+        → pytest                        # 97 test: parser, timestamp, chống bot, làm sạch dữ liệu, gửi tin
+        → 01_fetch.py   # OHLCV từ nguồn đã mua + cache CSV + quality_report.json
+        → 02_indicators.py # MA20/50/200, RSI, MACD, Bollinger, ADX, Ichimoku, SMC
         → 03_analysis.py   # Gemini Flash API phân tích tín hiệu
-        → 04_telegram.py   # Gửi báo cáo qua Telegram Bot
+        → 04_telegram.py   # Gửi báo cáo qua Telegram Bot (retry + fallback văn bản thuần)
+        → write_summary.py # bảng tóm tắt trong tab Actions
+        → commit CSV + quality_report.json
+        → check_freshness.py            # chặn trường hợp dữ liệu âm thầm đứng yên
 ```
+
+Nếu bất kỳ bước nào lỗi, bước `Alert on failure` gửi tin nhắn Telegram báo hỏng — kể cả khi lỗi xảy ra ở
+`pip install` (script dùng `urllib` thuần, không phụ thuộc gói ngoài).
+
+## Cấu trúc repo
+
+```
+src/
+├── main.py             # Entry point pipeline (--dry-run, --force-full, --symbols)
+├── yuanta_client.py    # HTTP client: nến ngày + bảng chỉ số, xử lý challenge, retry
+├── data_quality.py     # Quy tắc kiểm tra/làm sạch nến (nguồn sự thật duy nhất)
+├── 01_fetch.py         # Tải dữ liệu, ghép với cache, ghi quality_report.json
+├── 02_indicators.py    # Tính chỉ báo kỹ thuật
+├── 03_analysis.py      # Gọi Gemini AI
+├── 04_telegram.py      # Format + gửi Telegram
+├── repair_data.py      # Làm sạch CSV đã commit (một lần / khi cần)
+├── check_freshness.py  # Cảnh báo & fail khi dữ liệu quá cũ
+├── telegram_check.py   # Kiểm tra token/chat_id + gửi tin thử (chỉ stdlib)
+├── write_summary.py    # Bảng tóm tắt cho tab Actions
+└── notify_failure.py   # Cảnh báo Telegram khi workflow lỗi (chỉ stdlib)
+tests/                  # 57 test, không cần mạng
+data/                   # Cache CSV + quality_report.json (commit vào repo)
+```
+
+## Quy tắc dữ liệu
+
+Mỗi nến đi qua `data_quality.sanitize_bars` trước khi được ghi:
+
+| Tình huống | Xử lý |
+|---|---|
+| Nến rơi vào Thứ 7 / Chủ nhật | loại bỏ |
+| Nến của hôm nay trước 15:15 giờ VN | loại bỏ (phiên chưa đóng) |
+| Nến ở tương lai | loại bỏ |
+| Giá ≤ 0 hoặc không phải số | loại bỏ |
+| `close` nằm ngoài `[low, high]` | nới `low`/`high` cho bao được `close` |
+| `open` nằm ngoài `[low, high]` | kéo `open` về trong khoảng (nguồn hay giữ nguyên `open` cũ nhiều phiên) |
+| Trùng ngày | giữ bản mới nhất |
+
+Lịch sử chỉ được **ghép thêm**, không bao giờ bị cắt bớt; 15 ngày gần nhất được tải lại mỗi lần chạy để nhận điều
+chỉnh muộn. Nếu nguồn trả về dữ liệu cũ hơn cache, bot giữ cache và ghi cảnh báo. Mọi sửa đổi được ghi vào
+`data/quality_report.json` (kèm so sánh chéo với bảng chỉ số).
 
 ## Setup
 
-### 1. Tạo Telegram Bot
-1. Nhắn `/newbot` cho [@BotFather](https://t.me/BotFather) → lấy **Bot Token**
-2. Tạo channel hoặc group → thêm bot vào
-3. Lấy **Chat ID**: gọi `https://api.telegram.org/bot<TOKEN>/getUpdates`
-
-### 2. Lấy Gemini API Key
-- Truy cập [Google AI Studio](https://aistudio.google.com/app/apikey) → tạo API Key miễn phí
-
-### 3. Cấu hình GitHub Secrets
-Vào **Settings → Secrets and variables → Actions → New repository secret**:
+### 1. Secrets
+**Settings → Secrets and variables → Actions → New repository secret:**
 
 | Secret | Giá trị |
 |---|---|
@@ -48,64 +98,66 @@ Vào **Settings → Secrets and variables → Actions → New repository secret*
 | `TELEGRAM_TOKEN` | Token từ BotFather |
 | `TELEGRAM_CHAT_ID` | Chat ID của channel/group |
 
-### 4. Setup cron-job.org (khuyến nghị)
-1. Đăng ký tài khoản miễn phí tại [cron-job.org](https://cron-job.org)
-2. Tạo cronjob mới:
-   - **URL**: `https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/actions/workflows/main.yml/dispatches`
-   - **Method**: POST
-   - **Headers**: 
-     ```
-     Authorization: Bearer YOUR_GITHUB_PAT
-     Accept: application/vnd.github.v3+json
-     ```
-   - **Body**: `{"ref":"main"}`
-   - **Schedule**: Thứ 2–6, 08:00 (múi giờ GMT+7)
-
-### 5. Chạy thử local
+### 2. Chạy thử local
 ```bash
-pip install -r requirements.txt
-
-# Cấu hình biến môi trường
-export GEMINI_API_KEY="your_key"
-export TELEGRAM_TOKEN="your_token"
-export TELEGRAM_CHAT_ID="your_chat_id"
-
-python src/main.py
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+python -m pytest -q          # không cần mạng
+python src/main.py           # cần TELEGRAM_* để gửi tin
 ```
 
-## Cấu trúc repo
+### 3. Chạy lại thủ công
+```bash
+python src/main.py --dry-run                   # chỉ tải dữ liệu + tính chỉ báo, không gửi tin
+python src/main.py --symbols VNINDEX,VN30      # chỉ vài mã
+python src/main.py --force-full                # tải lại toàn bộ lịch sử
+python src/repair_data.py --dry-run            # xem CSV nào lệch chuẩn
+python src/check_freshness.py                  # dữ liệu có cũ quá không
+python src/telegram_check.py --send "thử"      # kiểm tra Telegram + gửi tin thử
+```
 
-```
-vn-sector-bot/
-├── src/
-│   ├── main.py          # Entry point pipeline
-│   ├── 01_fetch.py      # Lấy dữ liệu vnstock
-│   ├── 02_indicators.py # Tính chỉ báo kỹ thuật
-│   ├── 03_analysis.py   # Gọi Gemini AI
-│   └── 04_telegram.py   # Gửi Telegram
-├── data/                # Cache CSV (auto-generated)
-├── .github/
-│   └── workflows/
-│       └── main.yml
-├── requirements.txt
-└── README.md
-```
+Workflow có input tương ứng (`force_full`, `symbols`, `dry_run`) để chạy từ tab Actions.
+
+### 3b. Kiểm tra và nhận tin nhắn Telegram
+
+**Cách nhanh nhất:** tab **Actions → Telegram Test → Run workflow** (chọn branch cần chạy). Workflow này
+không cài gói, không gọi nguồn dữ liệu, chạy khoảng 15 giây: nó kiểm tra token, kiểm tra chat rồi gửi một
+tin nhắn thử. Nếu vẫn không nhận được tin, log của bước này nói rõ lý do:
+
+| Thông báo của Telegram | Nguyên nhân | Cách sửa |
+|---|---|---|
+| `Unauthorized` / `Not Found` | token sai hoặc đã bị thu hồi | BotFather → API Token, cập nhật secret `TELEGRAM_TOKEN` |
+| `Bad Request: chat not found` | `chat_id` sai, hoặc bot chưa vào nhóm | thêm bot vào nhóm/kênh, lấy lại chat id |
+| `Forbidden: bot was blocked by the user` | bạn đã chặn bot | mở Telegram, bỏ chặn bot |
+| `Forbidden: bot is not a member…` | bot chưa được thêm vào kênh | thêm bot, cấp quyền gửi tin |
+| `Bad Request: not enough rights…` | bot thiếu quyền gửi | cấp quyền gửi tin cho bot trong kênh/nhóm |
+
+Mỗi lần chạy báo cáo, phần **summary** ở tab Actions có dòng *Telegram — báo cáo* và *Telegram — cấu hình*,
+nên biết ngay tin đã đi hay chưa và vì sao. Nếu dữ liệu chưa cập nhật, dùng **Run workflow** với
+`dry_run: true` để kiểm tra nguồn dữ liệu trước khi gửi tin.
+
+### 4. Trigger từ cron-job.org (khuyến nghị)
+- **URL**: `https://api.github.com/repos/FTU-kudo/VN-sector-analysis/actions/workflows/VN_Sector_Indices_Bot.yml/dispatches`
+- **Method**: POST · **Headers**: `Authorization: Bearer <PAT>`, `Accept: application/vnd.github.v3+json`
+- **Body**: `{"ref":"main"}`
+- **Schedule**: Thứ 2–6, 17:15 (GMT+7)
+
+`schedule:` trong workflow đang tắt để tránh gửi 2 tin/ngày; nếu cron-job.org hỏng hoàn toàn thì bật lại.
 
 ## Mẫu tin nhắn Telegram
 
 ```
-📊 BÁO CÁO THỊ TRƯỜNG — 04/08/2026
+📊 BÁO CÁO THỊ TRƯỜNG — 09/11/2026
 
-Vốn hoá trung – nhỏ
-🟢 VNMID 1,913.2 (+2.14%) | RSI Trung tính
-🔴 VNSML 1,250.0 (-0.73%) | RSI Quá bán
-
-Chỉ số ngành
-🟢 VNFIN  2,153.9 (+1.2%) | RSI Trung tính
+📈 Chỉ số thị trường chung
+🔴 VNINDEX 1,714.32 (-0.64%) | RSI: Trung tính (42.93) | MACD: Death 💀 | ADX: Sideways | Ichi: Tiêu cực
 ...
 
 ━━━━━━━━━━━━━━━━━
 🤖 Phân tích AI
-
 [Phân tích tự động từ Gemini]
 ```
+
+Nếu dữ liệu mới nhất không phải phiên gần đây, tin nhắn mở đầu bằng dòng cảnh báo `⚠️ Dữ liệu mới nhất là phiên …`,
+nên không bao giờ có chuyện báo cáo cũ mà trông như mới. Báo cáo dài được chia thành nhiều phần
+(`(Phần 1/2)`); nếu Telegram từ chối HTML, tin được gửi lại dạng văn bản thuần thay vì mất luôn.

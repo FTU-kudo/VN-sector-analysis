@@ -1,17 +1,39 @@
+# .github/workflows/VN_Sector_Indices_Bot.yml
 name: VN Sector Indices Bot
 
 on:
-  # Trigger từ cron-job.org gọi webhook này
+  # Trigger từ cron-job.org gọi qua webhook này.
   workflow_dispatch:
-  # Backup: GitHub cron lúc 01:00 UTC = 08:00 GMT+7
-  # (Lưu ý: GitHub cron không đảm bảo giờ chính xác trên repo mới)
+    inputs:
+      force_full:
+        description: "Tải lại toàn bộ lịch sử từ nguồn dữ liệu"
+        type: boolean
+        default: false
+      symbols:
+        description: "Chỉ các mã này, phân cách bằng dấu phẩy (để trống = tất cả)"
+        type: string
+        default: ""
+      dry_run:
+        description: "Dry-run: chỉ kiểm tra dữ liệu, không gửi Telegram, không commit"
+        type: boolean
+        default: false
+  # Backup: GitHub cron lúc 10:15 UTC = 17:15 GMT+7 (Thứ 2–6).
+  # Đang tắt vì cron-job.org đã gọi workflow này; bật lại sẽ gửi 2 tin/ngày.
   # schedule:
-  #   - cron: "15 10 * * 1-5"   # Thứ 2–6, 08:00 SA giờ VN
+  #   - cron: "15 10 * * 1-5"
+
+# Một lần chạy tại một thời điểm: hai run song song sẽ tranh nhau commit dữ liệu.
+concurrency:
+  group: vn-sector-bot
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: write
 
@@ -28,28 +50,77 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Cache data directory
-        uses: actions/cache@v4
-        with:
-          path: data/
-          key: vn-data-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            vn-data-${{ runner.os }}-
-
-      - name: Run pipeline
+      # Chạy TRƯỚC khi cài gói, chỉ dùng stdlib: nếu secret Telegram sai thì biết
+      # ngay ở bước đầu, kèm lý do cụ thể. Không chặn run để dữ liệu vẫn cập nhật.
+      - name: Check Telegram configuration
+        id: telegram_check
+        continue-on-error: true
         env:
-          GEMINI_API_KEY:   ${{ secrets.GEMINI_API_KEY }}
-          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python src/main.py
+        run: python src/telegram_check.py --json-out data/telegram_check.json --summary
 
-      - name: Commit updated CSV cache
+      - name: Install dependencies
+        id: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run test suite
+        id: tests
+        run: python -m pytest -q
+
+      # Không còn bước actions/cache cho data/: CSV đã nằm trong git, và cache
+      # chỉ có thể khôi phục một bản cũ hơn đè lên dữ liệu mới checkout.
+      - name: Run pipeline
+        id: pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INPUT_FORCE_FULL: ${{ inputs.force_full }}
+          INPUT_SYMBOLS: ${{ inputs.symbols }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          ARGS=()
+          if [ "${INPUT_FORCE_FULL}" = "true" ]; then ARGS+=("--force-full"); fi
+          if [ -n "${INPUT_SYMBOLS}" ]; then ARGS+=("--symbols" "${INPUT_SYMBOLS}"); fi
+          if [ "${INPUT_DRY_RUN}" = "true" ]; then ARGS+=("--dry-run"); fi
+          echo "Chạy: python src/main.py ${ARGS[*]}"
+          python src/main.py "${ARGS[@]}"
+
+      - name: Write run summary
+        if: always()
+        run: python src/write_summary.py
+
+      - name: Commit updated data
+        id: commit
+        if: success() && inputs.dry_run != 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/*.csv || true
-          git diff --staged --quiet || git commit -m "chore: update data cache $(date +'%Y-%m-%d')"
-          git push || true
+          git add data/*.csv
+          if [ -f data/quality_report.json ]; then git add data/quality_report.json; fi
+          if git diff --staged --quiet; then
+            echo "Không có thay đổi dữ liệu."
+            exit 0
+          fi
+          git commit -m "chore: update data cache $(date -u +'%Y-%m-%d')"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME:-main}"
+          git push origin "HEAD:${GITHUB_REF_NAME:-main}"
+
+      # Chốt chặn cho đúng kiểu sự cố đã xảy ra: bot ngừng cập nhật 10 ngày
+      # mà không ai biết.
+      - name: Check data freshness
+        id: freshness
+        if: success() && inputs.dry_run != 'true'
+        run: python src/check_freshness.py
+
+      # Cảnh báo dùng urllib nên vẫn gửi được kể cả khi pip install hỏng.
+      - name: Alert on failure
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CHECKS: "telegram=${{ steps.telegram_check.outcome }} install=${{ steps.install.outcome }} tests=${{ steps.tests.outcome }} pipeline=${{ steps.pipeline.outcome }} commit=${{ steps.commit.outcome }} freshness=${{ steps.freshness.outcome }}"
+        run: python src/notify_failure.py "Workflow thất bại — ${CHECKS}"

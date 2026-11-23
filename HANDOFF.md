@@ -1,3 +1,4 @@
+<!-- HANDOFF.md -->
 # NHẬT KÝ BẢO TRÌ & XỬ LÝ LỖI (HANDOFF LOG)
 **Dự án:** VN-sector-analysis (Bot Telegram phân tích chỉ số ngành)
 **Thời gian xử lý:** Đêm ngày 18/08/2026 - Rạng sáng ngày 19/08/2026
@@ -36,3 +37,77 @@
 
 ---
 **Trạng thái hiện tại:** Dự án đã hoạt động ổn định trở lại, dữ liệu cache từ Vietcap đã lưu chính xác ngày gần nhất, bot đã gửi tin với phân tích của AI bình thường trên kênh Telegram. Mọi thay đổi đều đã được push lên `main`.
+
+---
+
+## 📅 [23/11/2026] Chuyển hẳn nguồn dữ liệu: bỏ vnstock, dùng API đã mua
+
+- **Tình trạng:** Bot chạy tốt đến hết 09/11/2026 rồi chết. Từ 10/11 đến 20/11 có **10 lần chạy liên tiếp đều đỏ**, tất cả
+  dừng ở bước `Install dependencies`, nên pipeline không chạy và dữ liệu đứng yên ở phiên **09/11/2026** (VNINDEX 1.714,32).
+  Không có cảnh báo nào được gửi đi, nên sự cố chỉ lộ ra khi kiểm tra tay.
+- **Nguyên nhân:** `vnstock` và `vnai` **không có trên PyPI**; cả hai chỉ phân phối qua extra index
+  `https://vnstocks.com/api/simple` khai báo ở dòng đầu `requirements.txt`. Khi index đó không còn phản hồi, `pip install`
+  thất bại trước khi chạy được một dòng code nào. `requirements.txt` không thay đổi từ 30/09, nên đây là phía nguồn hỏng,
+  không phải phía repo. (Ghi chú cũ "khoá `vnstock==4.0.2`" ở trên đã bị thay bằng `vnstock>=4.0.8` từ 30/09 và nay không còn
+  hiệu lực: gói đã bị xoá khỏi dự án.)
+- **Giải pháp:**
+  - Xoá toàn bộ `vnstock`, `vnai`, `vnstock_ezchart`, monkey patch `_VCI_INDEX_MAPPING` và mẹo `sys.modules['vnstock.common.viz']`.
+  - Thêm `src/yuanta_client.py`: client cho hai endpoint công khai của nguồn đã mua (nến ngày `tradingview/history` và bảng chỉ số
+    `list_index`), có session giữ cookie, tự đi theo bước nhảy chống bot `?jskey=` (chỉ cùng host, tối đa 3 lần), retry có
+    backoff, và đọc `t` theo UTC (không theo giờ máy).
+  - `requirements.txt` giờ chỉ còn `pandas`, `numpy`, `requests` — cài được từ PyPI thuần, không cần extra index.
+  - Bỏ bước `actions/cache` cho `data/`: CSV đã nằm trong git, cache chỉ có thể khôi phục bản cũ hơn đè lên bản mới checkout —
+    đúng cơ chế đã gây ra sự cố 18/08.
+  - Thêm `concurrency` để hai lần chạy không tranh nhau commit; bỏ `|| true` ở bước push để lỗi push không bị nuốt.
+  - Thêm cảnh báo Telegram khi workflow lỗi (`src/notify_failure.py`, chỉ dùng stdlib nên vẫn chạy được khi `pip install` hỏng),
+    và cảnh báo trong chính tin nhắn báo cáo khi dữ liệu đã cũ.
+  - Thêm `src/check_freshness.py` (fail khi dữ liệu cũ quá 8 ngày giao dịch — Tết khoảng 6 ngày nên vẫn qua) và
+    `src/data_quality.py` + `data/quality_report.json` để mọi sửa đổi dữ liệu đều được ghi lại.
+  - Thêm 57 test (`tests/`) chạy không cần mạng, và workflow chạy `pytest` trước pipeline.
+- **Dữ liệu đã sửa một lần bằng `src/repair_data.py`:**
+  - Xoá nến ma Thứ Bảy **2008-08-16** trong VNINDEX (close 900,26 nằm giữa 488,94 và 511,53) — nến này làm sai mọi chỉ báo cuộn.
+  - 17 nến VNINDEX có `close` nằm ngoài `[low, high]`: nới `low`/`high` cho bao được `close` (giữ nguyên chuỗi close).
+  - Khoảng 400 nến (chủ yếu chỉ số ngành 2018–2019) có `open` bị giữ nguyên từ phiên trước nhiều ngày liền: kéo `open` về trong
+    khoảng `[low, high]` thay vì thổi phồng `high`/`low` bằng giá trị cũ.
+- **Chưa kiểm chứng được:** sandbox không kết nối được tới host dữ liệu, nên hành vi endpoint vẫn dựa trên mô tả/hình ảnh.
+  Lần chạy thật đầu tiên cần xem log: số nến tải về mỗi chỉ số, `data/quality_report.json` (nhất là `board_check`), và mã VNUTI
+  mới thêm. Nếu nguồn không có VNUTI thì chỉ cần xoá một dòng trong `INDICES`.
+
+---
+
+## 📅 [23/11/2026] Viết lại workflow để kiểm tra được và chắc chắn nhận được tin Telegram
+
+- **Yêu cầu:** kiểm tra và viết lại các file workflow sao cho có thể *kiểm tra* được và *nhận* được tin nhắn Telegram.
+- **Những gì đã tìm ra khi kiểm tra code gửi tin:**
+  - `_post_single` bắt `requests.HTTPError` rồi đọc `resp.status_code`, nhưng nếu lỗi xảy ra ngay ở `requests.post`
+    thì `resp` chưa được gán — có thể ném `UnboundLocalError` che mất lỗi thật.
+  - Không có retry: một lần 429/502 thoáng qua là **mất toàn bộ báo cáo** của ngày hôm đó.
+  - Lỗi 400/403 (chat_id sai, bot bị chặn) chỉ in nguyên văn tiếng Anh của Telegram, không nói cách sửa.
+  - Fallback khi Telegram từ chối HTML chỉ `unescape` chứ không bỏ thẻ, nên tin dự phòng vẫn còn `<b>…</b>`.
+  - Không có cách nào kiểm tra secret Telegram mà không chạy cả pipeline — trong khi sự cố vừa rồi lại xảy ra
+    đúng ở bước `pip install`, tức là **không có dòng code nào kịp chạy** để báo là Telegram hỏng.
+  - Không có bảng tóm tắt: muốn biết phiên dữ liệu nào, gửi được tin chưa, phải mở log từng bước.
+  - Khi nguồn dữ liệu chết hẳn, mỗi chỉ số chờ 3 lần retry → cả 18 chỉ số mất nhiều phút vô ích.
+- **Đã sửa:**
+  - `src/modules mới`: `telegram_check.py` (stdlib: kiểm tra định dạng token → `getMe` → `getChat` → tuỳ chọn gửi thử,
+    in gợi ý sửa lỗi, ghi JSON/summary) và `write_summary.py` (bảng Markdown cho `$GITHUB_STEP_SUMMARY`).
+  - `04_telegram.py`: `_post_message` retry có backoff cho lỗi tạm thời (429 tôn trọng `retry_after`, 5xx, mất mạng),
+    **không** retry cho lỗi cấu hình (400/403), trả về lý do cụ thể qua `LAST_ERROR`; fallback HTML → văn bản thuần có bỏ thẻ.
+  - `main.py`: thêm `--dry-run` (chỉ tải dữ liệu + tính chỉ báo, không gọi Gemini, không gửi tin) và ghi
+    `data/run_status.json` cho bước summary.
+  - `01_fetch.py`: cầu dao — sau 3 lỗi liên tiếp thì ngừng gọi API, các mã còn lại dùng cache (status `skipped`).
+  - Workflow chính: thêm bước `Check Telegram configuration` chạy **trước** `pip install` và chỉ dùng stdlib
+    (`continue-on-error: true` để dữ liệu vẫn cập nhật), input `dry_run`, bước `Write run summary` (`if: always()`),
+    cảnh báo lỗi kèm trạng thái từng bước (`telegram=… install=… tests=… pipeline=…`), và truyền input qua `env`
+    thay vì nội suy thẳng vào shell.
+  - Workflow mới `.github/workflows/Telegram_Test.yml`: chạy tay, không cài gói, kiểm tra token/chat rồi gửi tin thử
+    trong khoảng 15 giây.
+  - Test: 57 → **97** test (thêm `test_telegram_check.py`, `test_telegram_send.py`, `test_write_summary.py`,
+    và test cho cầu dao dừng gọi API).
+- **Cách kiểm tra (theo thứ tự):**
+  1. Actions → **Telegram Test** → Run workflow. Chưa nhận được tin thì log của bước này nói rõ lý do.
+  2. Actions → **VN Sector Indices Bot** → Run workflow với `dry_run: true`: xác nhận dữ liệu mới nhất là phiên nào.
+  3. Chạy lại không có `dry_run`: nhận báo cáo thật.
+- **Chưa kiểm chứng được:** sandbox không có secret và không gọi được `api.telegram.org`, nên lần chạy
+  **Telegram Test** đầu tiên chính là phép thử cho phần này. Logic retry/fallback/chia phần đã được test bằng
+  response giả, không phải bằng Telegram thật.

@@ -1,7 +1,6 @@
---extra-index-url https://vnstocks.com/api/simple
-vnstock>=4.0.8
-pandas>=2.0.0
-numpy>=1.24.0
-requests>=2.31.0
-vnstock_ezchart
-vnai
+# requirements.txt
+# Runtime dependencies only. vnstock/vnai are gone: data now comes from the
+# licensed market-data API via src/yuanta_client.py (no extra index needed).
+pandas>=2.2,<4
+numpy>=1.26,<3
+requests>=2.31,<3
