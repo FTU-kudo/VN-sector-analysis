@@ -1,3 +1,4 @@
+# src/04_telegram.py
 """
 04_telegram.py — Format và gửi báo cáo thị trường qua Telegram.
 - Chuyển đổi markdown **bold** từ Gemini thành HTML <b>bold</b>.
@@ -113,7 +114,7 @@ def _smc_short(smc_str: str) -> str:
 
 
 # ── Format tin nhắn ─────────────────────────────────────────────────
-def format_message(signals: List[dict], analysis: str) -> str:
+def format_message(signals: List[dict], analysis: str, notice: str = "") -> str:
     if signals and "date" in signals[0]:
         date_str = signals[0]["date"]
     else:
@@ -159,8 +160,9 @@ def format_message(signals: List[dict], analysis: str) -> str:
     sector_lines = "\n".join(fmt_row(s) for s in sector_sigs) if sector_sigs else "—"
 
     analysis_html = _sanitize_gemini_text(analysis)
+    notice_html = f"<b>⚠️ {html_lib.escape(notice)}</b>\n\n" if notice else ""
 
-    msg = f"""📊 <b>BÁO CÁO THỊ TRƯỜNG — {date_str}</b>
+    msg = f"""{notice_html}📊 <b>BÁO CÁO THỊ TRƯỜNG — {date_str}</b>
 
 📈 <b>Chỉ số thị trường chung</b>
 {market_lines}
@@ -230,6 +232,26 @@ def send_telegram(message: str) -> bool:
         results.append(ok)
 
     return all(results)
+
+
+def send_plain(text: str) -> bool:
+    """Unformatted message, used for failure notices when the pipeline throws."""
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        log.warning("Thiếu TELEGRAM_TOKEN hoặc TELEGRAM_CHAT_ID")
+        return False
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text[:3500],
+        "disable_web_page_preview": True,
+    }
+    try:
+        resp = requests.post(TELEGRAM_URL, json=payload, timeout=15)
+        if not resp.ok:
+            log.error("Telegram HTTP %s: %s", resp.status_code, resp.text[:200])
+        return resp.ok
+    except requests.RequestException as exc:
+        log.error("Lỗi gửi Telegram: %s", exc)
+        return False
 
 
 def _post_single(text: str) -> bool:

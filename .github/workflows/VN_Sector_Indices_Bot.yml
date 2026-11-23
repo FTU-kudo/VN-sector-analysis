@@ -1,17 +1,32 @@
+# .github/workflows/VN_Sector_Indices_Bot.yml
 name: VN Sector Indices Bot
 
 on:
-  # Trigger từ cron-job.org gọi webhook này
+  # Trigger từ cron-job.org gọi qua webhook này.
   workflow_dispatch:
-  # Backup: GitHub cron lúc 01:00 UTC = 08:00 GMT+7
-  # (Lưu ý: GitHub cron không đảm bảo giờ chính xác trên repo mới)
+    inputs:
+      force_full:
+        description: "Tải lại toàn bộ lịch sử từ nguồn dữ liệu"
+        type: boolean
+        default: false
+      symbols:
+        description: "Chỉ các mã này, phân cách bằng dấu phẩy (để trống = tất cả)"
+        type: string
+        default: ""
+  # Backup: GitHub cron lúc 10:15 UTC = 17:15 GMT+7 (Thứ 2–6).
+  # Đang tắt vì cron-job.org đã gọi workflow này; bật lại sẽ gửi 2 tin/ngày.
   # schedule:
-  #   - cron: "15 10 * * 1-5"   # Thứ 2–6, 08:00 SA giờ VN
+  #   - cron: "15 10 * * 1-5"
+
+# Một lần chạy tại một thời điểm: hai run song song sẽ tranh nhau commit dữ liệu.
+concurrency:
+  group: vn-sector-bot
+  cancel-in-progress: false
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: write
 
@@ -29,27 +44,48 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
 
-      - name: Cache data directory
-        uses: actions/cache@v4
-        with:
-          path: data/
-          key: vn-data-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            vn-data-${{ runner.os }}-
+      - name: Run test suite
+        run: python -m pytest -q
 
+      # Không còn bước actions/cache cho data/: CSV đã nằm trong git, và cache
+      # chỉ có thể khôi phục một bản cũ hơn đè lên dữ liệu mới checkout.
       - name: Run pipeline
         env:
-          GEMINI_API_KEY:   ${{ secrets.GEMINI_API_KEY }}
-          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python src/main.py
+        run: |
+          ARGS=()
+          if [ "${{ inputs.force_full }}" = "true" ]; then ARGS+=("--force-full"); fi
+          if [ -n "${{ inputs.symbols }}" ]; then ARGS+=("--symbols" "${{ inputs.symbols }}"); fi
+          python src/main.py "${ARGS[@]}"
 
-      - name: Commit updated CSV cache
+      - name: Commit updated data
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/*.csv || true
-          git diff --staged --quiet || git commit -m "chore: update data cache $(date +'%Y-%m-%d')"
-          git push || true
+          git add data/*.csv
+          if [ -f data/quality_report.json ]; then git add data/quality_report.json; fi
+          if git diff --staged --quiet; then
+            echo "Không có thay đổi dữ liệu."
+            exit 0
+          fi
+          git commit -m "chore: update data cache $(date -u +'%Y-%m-%d')"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME:-main}"
+          git push origin "HEAD:${GITHUB_REF_NAME:-main}"
+
+      # Chốt chặn cho đúng kiểu sự cố vừa xảy ra: bot ngừng cập nhật 10 ngày
+      # mà không ai biết.
+      - name: Check data freshness
+        run: python src/check_freshness.py
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python src/notify_failure.py "Workflow thất bại — xem log trong tab Actions"

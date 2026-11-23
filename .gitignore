@@ -1,0 +1,6 @@
+# .gitignore
+# Môi trường ảo và cache của Python (dữ liệu CSV trong data/ vẫn được commit)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

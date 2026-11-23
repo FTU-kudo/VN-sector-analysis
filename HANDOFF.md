@@ -1,3 +1,4 @@
+<!-- HANDOFF.md -->
 # NHẬT KÝ BẢO TRÌ & XỬ LÝ LỖI (HANDOFF LOG)
 **Dự án:** VN-sector-analysis (Bot Telegram phân tích chỉ số ngành)
 **Thời gian xử lý:** Đêm ngày 18/08/2026 - Rạng sáng ngày 19/08/2026
@@ -36,3 +37,38 @@
 
 ---
 **Trạng thái hiện tại:** Dự án đã hoạt động ổn định trở lại, dữ liệu cache từ Vietcap đã lưu chính xác ngày gần nhất, bot đã gửi tin với phân tích của AI bình thường trên kênh Telegram. Mọi thay đổi đều đã được push lên `main`.
+
+---
+
+## 📅 [23/11/2026] Chuyển hẳn nguồn dữ liệu: bỏ vnstock, dùng API đã mua
+
+- **Tình trạng:** Bot chạy tốt đến hết 09/11/2026 rồi chết. Từ 10/11 đến 20/11 có **10 lần chạy liên tiếp đều đỏ**, tất cả
+  dừng ở bước `Install dependencies`, nên pipeline không chạy và dữ liệu đứng yên ở phiên **09/11/2026** (VNINDEX 1.714,32).
+  Không có cảnh báo nào được gửi đi, nên sự cố chỉ lộ ra khi kiểm tra tay.
+- **Nguyên nhân:** `vnstock` và `vnai` **không có trên PyPI**; cả hai chỉ phân phối qua extra index
+  `https://vnstocks.com/api/simple` khai báo ở dòng đầu `requirements.txt`. Khi index đó không còn phản hồi, `pip install`
+  thất bại trước khi chạy được một dòng code nào. `requirements.txt` không thay đổi từ 30/09, nên đây là phía nguồn hỏng,
+  không phải phía repo. (Ghi chú cũ "khoá `vnstock==4.0.2`" ở trên đã bị thay bằng `vnstock>=4.0.8` từ 30/09 và nay không còn
+  hiệu lực: gói đã bị xoá khỏi dự án.)
+- **Giải pháp:**
+  - Xoá toàn bộ `vnstock`, `vnai`, `vnstock_ezchart`, monkey patch `_VCI_INDEX_MAPPING` và mẹo `sys.modules['vnstock.common.viz']`.
+  - Thêm `src/yuanta_client.py`: client cho hai endpoint công khai của nguồn đã mua (nến ngày `tradingview/history` và bảng chỉ số
+    `list_index`), có session giữ cookie, tự đi theo bước nhảy chống bot `?jskey=` (chỉ cùng host, tối đa 3 lần), retry có
+    backoff, và đọc `t` theo UTC (không theo giờ máy).
+  - `requirements.txt` giờ chỉ còn `pandas`, `numpy`, `requests` — cài được từ PyPI thuần, không cần extra index.
+  - Bỏ bước `actions/cache` cho `data/`: CSV đã nằm trong git, cache chỉ có thể khôi phục bản cũ hơn đè lên bản mới checkout —
+    đúng cơ chế đã gây ra sự cố 18/08.
+  - Thêm `concurrency` để hai lần chạy không tranh nhau commit; bỏ `|| true` ở bước push để lỗi push không bị nuốt.
+  - Thêm cảnh báo Telegram khi workflow lỗi (`src/notify_failure.py`, chỉ dùng stdlib nên vẫn chạy được khi `pip install` hỏng),
+    và cảnh báo trong chính tin nhắn báo cáo khi dữ liệu đã cũ.
+  - Thêm `src/check_freshness.py` (fail khi dữ liệu cũ quá 8 ngày giao dịch — Tết khoảng 6 ngày nên vẫn qua) và
+    `src/data_quality.py` + `data/quality_report.json` để mọi sửa đổi dữ liệu đều được ghi lại.
+  - Thêm 57 test (`tests/`) chạy không cần mạng, và workflow chạy `pytest` trước pipeline.
+- **Dữ liệu đã sửa một lần bằng `src/repair_data.py`:**
+  - Xoá nến ma Thứ Bảy **2008-08-16** trong VNINDEX (close 900,26 nằm giữa 488,94 và 511,53) — nến này làm sai mọi chỉ báo cuộn.
+  - 17 nến VNINDEX có `close` nằm ngoài `[low, high]`: nới `low`/`high` cho bao được `close` (giữ nguyên chuỗi close).
+  - Khoảng 400 nến (chủ yếu chỉ số ngành 2018–2019) có `open` bị giữ nguyên từ phiên trước nhiều ngày liền: kéo `open` về trong
+    khoảng `[low, high]` thay vì thổi phồng `high`/`low` bằng giá trị cũ.
+- **Chưa kiểm chứng được:** sandbox không kết nối được tới host dữ liệu, nên hành vi endpoint vẫn dựa trên mô tả/hình ảnh.
+  Lần chạy thật đầu tiên cần xem log: số nến tải về mỗi chỉ số, `data/quality_report.json` (nhất là `board_check`), và mã VNUTI
+  mới thêm. Nếu nguồn không có VNUTI thì chỉ cần xoá một dòng trong `INDICES`.
