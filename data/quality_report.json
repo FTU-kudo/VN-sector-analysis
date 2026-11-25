@@ -3,155 +3,155 @@
   "available": true,
   "indexes": {
    "HNXINDEX": {
-    "curr": 232.23,
-    "delta_vs_ref_pct": -1.006,
-    "last_close": 232.23,
+    "curr": 227.46,
+    "delta_vs_ref_pct": -2.054,
+    "last_close": 227.46,
     "on_board": true,
-    "ref": 234.59,
+    "ref": 232.23,
     "session": "99"
    },
    "UPCOMINDEX": {
-    "curr": 119.17,
-    "delta_vs_ref_pct": 0.025,
-    "last_close": 119.17,
+    "curr": 119.82,
+    "delta_vs_ref_pct": 0.545,
+    "last_close": 119.82,
     "on_board": true,
-    "ref": 119.14,
+    "ref": 119.17,
     "session": "99"
    },
    "VN100": {
-    "curr": 1720.49,
-    "delta_vs_ref_pct": 0.213,
-    "last_close": 1720.49,
+    "curr": 1707.45,
+    "delta_vs_ref_pct": -0.758,
+    "last_close": 1707.45,
     "on_board": true,
-    "ref": 1716.84,
+    "ref": 1720.49,
     "session": "99"
    },
    "VN30": {
-    "curr": 1791.12,
-    "delta_vs_ref_pct": 0.24,
-    "last_close": 1791.12,
+    "curr": 1778.58,
+    "delta_vs_ref_pct": -0.7,
+    "last_close": 1778.58,
     "on_board": true,
-    "ref": 1786.84,
+    "ref": 1791.12,
     "session": "99"
    },
    "VNALL": {
-    "curr": 1696.97,
-    "delta_vs_ref_pct": 0.197,
-    "last_close": 1696.97,
+    "curr": 1684.07,
+    "delta_vs_ref_pct": -0.76,
+    "last_close": 1684.07,
     "on_board": true,
-    "ref": 1693.64,
+    "ref": 1696.97,
     "session": "99"
    },
    "VNCOND": {
-    "curr": 1830.37,
-    "delta_vs_ref_pct": -1.009,
-    "last_close": 1830.37,
+    "curr": 1817.36,
+    "delta_vs_ref_pct": -0.711,
+    "last_close": 1817.36,
     "on_board": true,
-    "ref": 1849.03,
+    "ref": 1830.37,
     "session": "99"
    },
    "VNCONS": {
-    "curr": 618.58,
-    "delta_vs_ref_pct": 0.272,
-    "last_close": 618.58,
+    "curr": 616.06,
+    "delta_vs_ref_pct": -0.407,
+    "last_close": 616.06,
     "on_board": true,
-    "ref": 616.9,
+    "ref": 618.58,
     "session": "99"
    },
    "VNENE": {
-    "curr": 678.59,
-    "delta_vs_ref_pct": 0.127,
-    "last_close": 678.59,
+    "curr": 664.5,
+    "delta_vs_ref_pct": -2.076,
+    "last_close": 664.5,
     "on_board": true,
-    "ref": 677.73,
+    "ref": 678.59,
     "session": "99"
    },
    "VNFIN": {
-    "curr": 2001.47,
-    "delta_vs_ref_pct": -0.361,
-    "last_close": 2001.47,
+    "curr": 1985.35,
+    "delta_vs_ref_pct": -0.805,
+    "last_close": 1985.35,
     "on_board": true,
-    "ref": 2008.73,
+    "ref": 2001.47,
     "session": "99"
    },
    "VNHEAL": {
-    "curr": 1391.14,
-    "delta_vs_ref_pct": -4.504,
-    "last_close": 1391.14,
+    "curr": 1382.35,
+    "delta_vs_ref_pct": -0.632,
+    "last_close": 1382.35,
     "on_board": true,
-    "ref": 1456.75,
+    "ref": 1391.14,
     "session": "99"
    },
    "VNIND": {
-    "curr": 804.23,
-    "delta_vs_ref_pct": 0.553,
-    "last_close": 804.23,
+    "curr": 803.7,
+    "delta_vs_ref_pct": -0.066,
+    "last_close": 803.7,
     "on_board": true,
-    "ref": 799.81,
+    "ref": 804.23,
     "session": "99"
    },
    "VNINDEX": {
-    "curr": 1697.14,
-    "delta_vs_ref_pct": 0.494,
-    "last_close": 1697.14,
+    "curr": 1687.45,
+    "delta_vs_ref_pct": -0.571,
+    "last_close": 1687.45,
     "on_board": true,
-    "ref": 1688.79,
+    "ref": 1697.14,
     "session": "99"
    },
    "VNIT": {
-    "curr": 2470.8,
-    "delta_vs_ref_pct": 3.83,
-    "last_close": 2470.8,
+    "curr": 2432.46,
+    "delta_vs_ref_pct": -1.552,
+    "last_close": 2432.46,
     "on_board": true,
-    "ref": 2379.66,
+    "ref": 2470.8,
     "session": "99"
    },
    "VNMAT": {
-    "curr": 1833.17,
-    "delta_vs_ref_pct": -0.121,
-    "last_close": 1833.17,
+    "curr": 1804.75,
+    "delta_vs_ref_pct": -1.55,
+    "last_close": 1804.75,
     "on_board": true,
-    "ref": 1835.4,
+    "ref": 1833.17,
     "session": "99"
    },
    "VNMID": {
-    "curr": 1811.39,
-    "delta_vs_ref_pct": 0.194,
-    "last_close": 1811.39,
+    "curr": 1788.86,
+    "delta_vs_ref_pct": -1.244,
+    "last_close": 1788.86,
     "on_board": true,
-    "ref": 1807.88,
+    "ref": 1811.39,
     "session": "99"
    },
    "VNREAL": {
-    "curr": 3234.17,
-    "delta_vs_ref_pct": 1.331,
-    "last_close": 3234.17,
+    "curr": 3219.68,
+    "delta_vs_ref_pct": -0.448,
+    "last_close": 3219.68,
     "on_board": true,
-    "ref": 3191.68,
+    "ref": 3234.17,
     "session": "99"
    },
    "VNSML": {
-    "curr": 1171.32,
-    "delta_vs_ref_pct": -0.306,
-    "last_close": 1171.32,
+    "curr": 1160.84,
+    "delta_vs_ref_pct": -0.895,
+    "last_close": 1160.84,
     "on_board": true,
-    "ref": 1174.92,
+    "ref": 1171.32,
     "session": "99"
    },
    "VNUTI": {
-    "curr": 938.29,
-    "delta_vs_ref_pct": 0.472,
-    "last_close": 938.29,
+    "curr": 929.64,
+    "delta_vs_ref_pct": -0.922,
+    "last_close": 929.64,
     "on_board": true,
-    "ref": 933.88,
+    "ref": 938.29,
     "session": "99"
    }
   }
  },
- "generated_at": "2026-11-24T18:00:55+07:00",
+ "generated_at": "2026-11-25T18:00:54+07:00",
  "issue_count": 0,
  "issue_counts": {},
- "latest_session": "2026-11-23",
+ "latest_session": "2026-11-25",
  "repair_ohlc": true,
  "request_stats": {
   "challenges": 1,
@@ -159,222 +159,222 @@
   "retries": 0
  },
  "source_host": "https://ysradar.yuanta.com.vn",
- "stale_days": 1,
+ "stale_days": 0,
  "symbols": {
   "HNXINDEX": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 3106,
+   "rows": 3107,
    "status": "ok"
   },
   "UPCOMINDEX": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 3855,
+   "rows": 3856,
    "status": "ok"
   },
   "VN100": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 4210,
+   "rows": 4211,
    "status": "ok"
   },
   "VN30": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 4210,
+   "rows": 4211,
    "status": "ok"
   },
   "VNALL": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 4210,
+   "rows": 4211,
    "status": "ok"
   },
   "VNCOND": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2703,
+   "rows": 2704,
    "status": "ok"
   },
   "VNCONS": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2703,
+   "rows": 2704,
    "status": "ok"
   },
   "VNENE": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2703,
+   "rows": 2704,
    "status": "ok"
   },
   "VNFIN": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2703,
+   "rows": 2704,
    "status": "ok"
   },
   "VNHEAL": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2703,
+   "rows": 2704,
    "status": "ok"
   },
   "VNIND": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2703,
+   "rows": 2704,
    "status": "ok"
   },
   "VNINDEX": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 5695,
+   "rows": 5696,
    "status": "ok"
   },
   "VNIT": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2569,
+   "rows": 2570,
    "status": "ok"
   },
   "VNMAT": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2703,
+   "rows": 2704,
    "status": "ok"
   },
   "VNMID": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 4210,
+   "rows": 4211,
    "status": "ok"
   },
   "VNREAL": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2703,
+   "rows": 2704,
    "status": "ok"
   },
   "VNSML": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 4210,
+   "rows": 4211,
    "status": "ok"
   },
   "VNUTI": {
-   "fetched_bars": 11,
+   "fetched_bars": 12,
    "issues": {
     "counts": {},
     "samples": {}
    },
-   "latest": "2026-11-23",
-   "new_bars": 0,
+   "latest": "2026-11-25",
+   "new_bars": 1,
    "requested_from": "2026-11-08",
-   "rows": 2701,
+   "rows": 2702,
    "status": "ok"
   }
  }
